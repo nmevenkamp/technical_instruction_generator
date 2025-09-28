@@ -71,9 +71,11 @@ class Manual:
     def __init__(self, steps: list[Step]) -> None:
         self.steps = steps
 
-    def draw(self, fname: str | Path | os.PathLike):
-        if not isinstance(fname, Path):
-            fname = Path(fname)
+    def draw(self, path: str | Path | os.PathLike):
+        if not isinstance(path, Path):
+            path = Path(path)
+
+        path.parent.mkdir(exist_ok=True)
 
         width, height = combined_size([step.size for step in self.steps])
 
@@ -85,7 +87,7 @@ class Manual:
                 step.draw(drawing, active=False)
             self.steps[i].draw(drawing, active=True)
 
-            drawing.save_svg(fname.parent / f"{fname.stem}_{i + 1:03d}.svg")
+            drawing.save_svg(path.parent / f"{path.stem}_{i + 1:03d}.svg")
 
 
 class Face:
