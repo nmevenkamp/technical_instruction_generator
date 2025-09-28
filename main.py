@@ -1,18 +1,16 @@
-from classes import (
-    DrillHole,
-    Face,
-    Manual,
-    ModifyFaceStep,
-)
+from technical_instruction_generator.instructions import Instructions
+from technical_instruction_generator.steps.drilling import  DrillHole
+from technical_instruction_generator.steps.face_handling import Face, ModifyFaceStep
+
 
 def main() -> None:
     face = Face("A", 1000, 100)
 
-    manual = Manual(steps=[
+    manual = Instructions(steps=[
         ModifyFaceStep(face, DrillHole(10, 10, 4)),
         ModifyFaceStep(face, DrillHole(10, 90, 4)),
     ])
-    manual.draw('output/manual.svg')
+    manual.draw('output/instructions.svg')
 
 
 if __name__ == "__main__":
