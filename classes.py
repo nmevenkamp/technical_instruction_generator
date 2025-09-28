@@ -1,6 +1,7 @@
 import math
 import os
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from builtins import _NotImplementedType
 from pathlib import Path
 from typing import Any
 
@@ -51,10 +52,10 @@ def draw_position(drawing: Drawing, x: float, y: float) -> None:
     ))
 
 
-class Step:
+class Step(ABC):
     @property
     @abstractmethod
-    def size(self) -> tuple[int, int]:
+    def size(self) -> tuple[int, int] | _NotImplementedType:
         return NotImplemented
 
     @property
