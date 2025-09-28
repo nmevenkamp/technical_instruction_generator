@@ -1,7 +1,7 @@
 import math
 
 import drawsvg as draw
-from drawsvg import Drawing
+from drawsvg import Drawing, Group
 
 from .base import Step
 from ..utils import combined_size
@@ -26,16 +26,22 @@ class Face:
 
 class ModifyFaceStep(Step):
     def __init__(self, face: Face, step: Step) -> None:
+        super().__init__()
         self.face = face
         self.step = step
+
+    @property
+    def identifier(self) -> str | None:
+        return self.step.identifier
 
     @property
     def size(self) -> tuple[int, int]:
         return combined_size([self.step.size, self.face.size])
 
+    @property
     def instruction(self) -> str:
-        return f"{self.step.instruction} auf {self.face}"
+        return f"{self.step.instruction[:-1]} auf {self.face}."
 
-    def draw(self, drawing: Drawing, active: bool = True) -> None:
+    def draw(self, drawing: Drawing | Group, active: bool = True) -> None:
         self.face.draw(drawing)
         self.step.draw(drawing, active)

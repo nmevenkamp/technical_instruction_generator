@@ -6,11 +6,25 @@ from technical_instruction_generator.steps.face_handling import Face, ModifyFace
 def main() -> None:
     face = Face("A", 1000, 100)
 
-    manual = Instructions(steps=[
-        ModifyFaceStep(face, DrillHole(10, 10, 4)),
-        ModifyFaceStep(face, DrillHole(10, 90, 4)),
-    ])
-    manual.draw('output/instructions.svg')
+    manual = Instructions(
+        title="Tims Abenteuerbett",
+        steps=[
+            ModifyFaceStep(face, DrillHole(10, 10, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyFaceStep(face, DrillHole(10, 90, 4)),
+        ]
+    )
+    manual.draw('output/instructions.pdf')
 
 
 if __name__ == "__main__":

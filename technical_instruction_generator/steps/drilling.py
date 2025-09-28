@@ -1,15 +1,16 @@
 import math
 
 import drawsvg as draw
-from drawsvg import Drawing
+from drawsvg import Drawing, Group
 
 from .base import Step
-from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE
+from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..utils import draw_position, get_color, Text
 
 
 class DrillHole(Step):
-    def __init__(self, x: float, y: float, diameter: float, depth: float = 0) -> None:
+    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.x = x
         self.y = y
         self.diameter = diameter
@@ -28,11 +29,12 @@ class DrillHole(Step):
 
     @property
     def annotation(self) -> str:
-        res = f"⌀{self.diameter}"
+        res = f"D{self.diameter}"
         if self.depth > 0:
             res += f"x{self.depth}"
         return res
 
+    @property
     def instruction(self) -> str:
         res = f"Bohre ein Loch bei ({self.x}, {self.y}) mit Durchmesser {self.diameter}"
         if self.depth > 0:
@@ -40,7 +42,7 @@ class DrillHole(Step):
         res += "."
         return res
 
-    def draw(self, drawing: Drawing, active: bool = True) -> None:
+    def draw(self, drawing: Drawing | Group, active: bool = True) -> None:
         color = get_color(active)
         drawing.append(draw.Circle(self.x, self.y, self.radius, stroke=color, fill='none'))
         if not active:
@@ -49,7 +51,7 @@ class DrillHole(Step):
         # hole dimensions
         drawing.append(Text(
             self.annotation,
-            FONT_SIZE,
+            FONT_SIZE_BASE,
             self.x + self.radius + ANNOTATION_OFFSET,
             self.y,
             text_anchor='start',
