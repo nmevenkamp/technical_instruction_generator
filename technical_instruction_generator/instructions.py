@@ -24,20 +24,29 @@ class Instructions:
     def __init__(self, steps: list[Step], title: str | None = None) -> None:
         self.steps = steps
         self.title = title
-        self._page_idx = -1
-        self._y_group = 0
-        self._drawing: Drawing | None = None
 
-    def draw(self, path: str | Path | os.PathLike):
+        self._etree_parser = etree.XMLParser(remove_comments=True, recover=True, resolve_entities=False)
+
+    def save_svgs(self, path: str | Path | os.PathLike) -> None:
         if not isinstance(path, Path):
             path = Path(path)
 
         path.parent.mkdir(exist_ok=True)
 
+        for idx, drawing in enumerate(self._generate_svgs()):
+            drawing.save_svg(path.parent / f"{path.stem}_{idx + 1:03d}.svg")
+
+    def save_pdf(self, path: str | Path | os.PathLike) -> None:
+        self._save_pdf(path, self._generate_svgs())
+
+    def _generate_svgs(self) -> list[Drawing]:
+        pages = []
+
         # compile SVGs
-        self._init_document(path)
-        for i in range(len(self.steps)):
-            step_id = self.steps[i].identifier or f"{i + 1}"
+        page_idx = 0
+        page, y_group = self._generate_page(page_idx)
+        for step_idx, step in enumerate(self.steps):
+            step_id = step.identifier or f"{step_idx + 1}"
 
             w_steps, h_steps = combined_size([step.size for step in self.steps])
             w_box = A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
@@ -48,7 +57,8 @@ class Instructions:
             group = Group(transform='scale(1,-1)')
 
             # add box
-            group.append(draw.Rectangle(x_box, y_box, w_box, h_box, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR, stroke_width=2, rx='5', ry='5'))
+            group.append(draw.Rectangle(x_box, y_box, w_box, h_box, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR,
+                                        stroke_width=2, rx='5', ry='5'))
 
             # add instructions
             y = h_box - INSTRUCTION_BOX_PADDING - HEADER_SIZE
@@ -62,53 +72,62 @@ class Instructions:
                 font_weight='bold',
                 font_family=FONT_FAMILY_TEXT,
             )
-            text.append(draw.TSpan(self.steps[i].instruction, dx=5, font_weight='normal'))
+            text.append(draw.TSpan(step.instruction, dx=5, font_weight='normal'))
             group.append(text)
 
             # add steps
             # TODO: only add steps performed on the same face of the same part
-            for step in self.steps[:-i]:
-                step.draw(group, active=False)
-            self.steps[i].draw(group, active=True)
+            for step_ in self.steps[:-step_idx]:
+                step_.draw(group, active=False)
+            step.draw(group, active=True)
 
-            if self._y_group + h_box > A4_HEIGHT - MARGIN_BOTTOM:
-                self._finalize_page()
+            if y_group + h_box > A4_HEIGHT - MARGIN_BOTTOM:
+                pages.append(page)
+                page_idx += 1
+                page, y_group = self._generate_page(page_idx)
 
-            self._drawing.append(draw.Use(group, MARGIN_LEFT, self._y_group + h_box))
-            self._y_group += h_box + INSTRUCTION_BOX_MARGIN
+            page.append(draw.Use(group, MARGIN_LEFT, y_group + h_box))
+            y_group += h_box + INSTRUCTION_BOX_MARGIN
 
-        self._finalize_page()
-        self._pdf_canvas.save()
+        pages.append(page)
 
-    def _finalize_page(self) -> None:
-        renderPDF.draw(self._get_pdf_drawing(), self._pdf_canvas, 0, 0)
-        self._pdf_canvas.showPage()
-        self._add_page()
+        return pages
 
-    def _init_document(self, path: Path) -> None:
-        self._page_idx = -1
-        self._add_page()
-        self._init_pdf(path)
-
-    def _init_pdf(self, path: Path) -> None:
-        d = renderScaledDrawing(self._get_pdf_drawing())
-        self._pdf_canvas = Canvas(str(path))
-        self._pdf_canvas.setTitle("")
-        self._pdf_canvas.setPageSize((d.width, d.height))
-
-    def _add_page(self) -> None:
-        self._page_idx += 1
+    def _generate_page(self, page_idx: int = None, title: str = None) -> tuple[Drawing, float]:
         w_canvas = A4_WIDTH
         h_canvas = A4_HEIGHT
-        self._drawing = draw.Drawing(w_canvas, h_canvas, origin=(0, 0))
-        self._drawing.append(draw.Rectangle(0, 0, w_canvas, h_canvas, fill='white'))
-        self._drawing.append(draw.Text(f"{self._page_idx + 1}", FONT_SIZE_BASE, A4_WIDTH - 100, A4_HEIGHT - 100, text_anchor='end', font_weight='bold', font_family=FONT_FAMILY_TEXT))
-        self._y_group = MARGIN_TOP
 
-        if self._page_idx == 0 and self.title:
-            self._drawing.append(draw.Text(self.title, FONT_SIZE_TITLE, A4_WIDTH / 2, MARGIN_TOP, text_anchor='middle', font_family=FONT_FAMILY_TEXT))
-            self._y_group += MARGIN_TITLE
+        drawing = draw.Drawing(w_canvas, h_canvas, origin=(0, 0))
+        drawing.append(draw.Rectangle(0, 0, w_canvas, h_canvas, fill='white'))
 
-    def _get_pdf_drawing(self) -> SvglibDrawing:
-        parser = etree.XMLParser(remove_comments=True, recover=True, resolve_entities=False)
-        return SvgRenderer("").render(etree.fromstring(self._drawing.as_svg().encode("utf-8"), parser=parser))
+        if page_idx is not None:
+            drawing.append(
+                draw.Text(f"{page_idx + 1}", FONT_SIZE_BASE, A4_WIDTH - 100, A4_HEIGHT - 100, text_anchor='end',
+                          font_weight='bold', font_family=FONT_FAMILY_TEXT))
+
+        y0 = MARGIN_TOP
+
+        if title is not None:
+            drawing.append(draw.Text(self.title, FONT_SIZE_TITLE, A4_WIDTH / 2, MARGIN_TOP, text_anchor='middle', font_family=FONT_FAMILY_TEXT))
+            y0 += MARGIN_TITLE
+
+        return drawing, y0
+
+    def _save_pdf(self, path: Path, drawings: list[Drawing]) -> None:
+        if not drawings:
+            raise "Cannot convert empty drawings to PDF!"
+
+        # initialize canvas
+        d = renderScaledDrawing(self._to_pdf_drawing(drawings[0]))
+        pdf_canvas = Canvas(str(path))
+        pdf_canvas.setTitle("")
+        pdf_canvas.setPageSize((d.width, d.height))
+
+        for drawing in drawings:
+            renderPDF.draw(self._to_pdf_drawing(drawing), pdf_canvas, 0, 0)
+            pdf_canvas.showPage()
+
+        pdf_canvas.save()
+
+    def _to_pdf_drawing(self, drawing: Drawing) -> SvglibDrawing:
+        return SvgRenderer("").render(etree.fromstring(drawing.as_svg().encode("utf-8"), parser=self._etree_parser))

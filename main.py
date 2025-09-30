@@ -24,7 +24,8 @@ def main() -> None:
             ModifyFaceStep(face, DrillHole(10, 90, 4)),
         ]
     )
-    manual.draw('output/instructions.pdf')
+    manual.save_svgs('output/instructions.svg')
+    manual.save_pdf('output/instructions.pdf')
 
 
 if __name__ == "__main__":
