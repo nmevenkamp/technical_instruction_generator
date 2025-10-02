@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from tkinter.constants import HORIZONTAL
 
 import drawsvg as draw
 from drawsvg import Drawing, Group
@@ -10,6 +11,7 @@ from reportlab.graphics import renderPDF
 from reportlab.graphics.renderbase import renderScaledDrawing
 from reportlab.pdfgen.canvas import Canvas
 
+from .layout import Alignment, ExpandBehaviour, LayoutDirection, LinearLayout, Page, ScaleBehaviour, SizedGroup
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
     A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, HEADER_TEXT_OFFSET_X, HEADER_SIZE, INSTRUCTION_BOX_MARGIN,
@@ -33,57 +35,50 @@ class Instructions:
 
         path.parent.mkdir(exist_ok=True)
 
-        for idx, drawing in enumerate(self._generate_svgs()):
-            drawing.save_svg(path.parent / f"{path.stem}_{idx + 1:03d}.svg")
+        for idx, page in enumerate(self._generate_svgs()):
+            page.drawing.save_svg(path.parent / f"{path.stem}_{idx + 1:03d}.svg")
 
     def save_pdf(self, path: str | Path | os.PathLike) -> None:
         self._save_pdf(path, self._generate_svgs())
 
-    def _generate_svgs(self) -> list[Drawing]:
-        pages = []
+    def _generate_svgs(self) -> list[Page]:
+        pages: list[Page] = []
 
         # compile SVGs
         page_idx = 0
-        page, y0 = self._generate_page(page_idx, self.title)
+        page = Page(page_idx, self.title)
         for step_idx in range(len(self.steps)):
-            step_group, h_box = self._generate_step(step_idx)
+            step_group = self._generate_step(step_idx)
 
-            if y0 + h_box > A4_HEIGHT - MARGIN_BOTTOM:
+            if not page.layout.add_group(step_group):
                 pages.append(page)
                 page_idx += 1
-                page, y0 = self._generate_page(page_idx)
-
-            page.append(draw.Use(step_group, MARGIN_LEFT, y0 + h_box))
-            y0 += h_box + INSTRUCTION_BOX_MARGIN
+                page = Page(page_idx)
+                if not page.layout.add_group(step_group):
+                    raise ValueError(f"Unable to add step {step_idx} `{self.steps[step_idx].instruction}` to new page!")
 
         pages.append(page)
 
         return pages
 
-    def _generate_step(self, step_idx: int) -> tuple[Group, float]:
+    def _generate_step(self, step_idx: int) -> SizedGroup:
         step = self.steps[step_idx]
         step_id = step.identifier or f"{step_idx + 1}"
 
-        w_steps, h_steps = combined_size([step.size for step in self.steps])
-        w_box = A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
-        h_box = h_steps + 2 * INSTRUCTION_BOX_PADDING + HEADER_SIZE
-        x_box = -INSTRUCTION_BOX_PADDING
-        y_box = -INSTRUCTION_BOX_PADDING
+        group = SizedGroup(width=A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, height=600)
+        # , size_behaviour=ExpandBehaviour(direction=LayoutDirection.HORIZONTAL, keep_aspect_ratio=False)
+        # TODO: actaully want to auto resize this before continuing
 
-        group = Group(transform='scale(1,-1)')
-
-        # add box
-        group.append(draw.Rectangle(x_box, y_box, w_box, h_box, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR,
+        group.append(draw.Rectangle(0, 0, group.width, group.height, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR,
                                     stroke_width=2, rx='5', ry='5'))
 
         # add instructions
-        y = h_box - INSTRUCTION_BOX_PADDING - HEADER_SIZE
-        group.append(draw.Line(x_box, y, x_box + w_box, y, stroke=INSTRUCTION_BOX_STROKE_COLOR))
-        text = Text(
+        group.append(draw.Line(0, HEADER_SIZE, group.width, HEADER_SIZE, stroke=INSTRUCTION_BOX_STROKE_COLOR))
+        text = draw.Text(
             f"Schritt {step_id}:",
             FONT_SIZE_BASE,
-            -INSTRUCTION_BOX_PADDING + HEADER_TEXT_OFFSET_X,
-            y + HEADER_SIZE / 2,
+            HEADER_TEXT_OFFSET_X,
+            HEADER_SIZE / 2,
             dominant_baseline="middle",
             font_weight='bold',
             font_family=FONT_FAMILY_TEXT,
@@ -91,46 +86,32 @@ class Instructions:
         text.append(draw.TSpan(step.instruction, dx=5, font_weight='normal'))
         group.append(text)
 
+        steps_layout = LinearLayout(width=group.width - 2 * INSTRUCTION_BOX_PADDING, height=group.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
+        group.append(draw.Use(steps_layout, INSTRUCTION_BOX_PADDING, HEADER_SIZE + INSTRUCTION_BOX_PADDING))
+
         # add steps
-        # TODO: only add steps performed on the same face of the same part
+        width, height = combined_size([step.size for step in self.steps])
+        full_view = SizedGroup(width=width, height=height, transform=f'scale(1,-1) translate(0,-{height})')
         for step_ in self.steps[:-step_idx]:
-            step_.draw(group, active=False)
-        step.draw(group, active=True)
+            step_.draw(full_view, active=False)
+        step.draw(full_view, active=True)
 
-        return group, h_box
+        steps_layout.add_group(full_view, size_behaviour=ScaleBehaviour())
 
-    def _generate_page(self, page_idx: int = None, title: str = None) -> tuple[Drawing, float]:
-        w_canvas = A4_WIDTH
-        h_canvas = A4_HEIGHT
+        return group
 
-        drawing = draw.Drawing(w_canvas, h_canvas, origin=(0, 0))
-        drawing.append(draw.Rectangle(0, 0, w_canvas, h_canvas, fill='white'))
-
-        if page_idx is not None:
-            drawing.append(
-                draw.Text(f"{page_idx + 1}", FONT_SIZE_BASE, A4_WIDTH - 100, A4_HEIGHT - 100, text_anchor='end',
-                          font_weight='bold', font_family=FONT_FAMILY_TEXT))
-
-        y0 = MARGIN_TOP
-
-        if title is not None:
-            drawing.append(draw.Text(self.title, FONT_SIZE_TITLE, A4_WIDTH / 2, MARGIN_TOP, text_anchor='middle', font_family=FONT_FAMILY_TEXT))
-            y0 += MARGIN_TITLE
-
-        return drawing, y0
-
-    def _save_pdf(self, path: Path, drawings: list[Drawing]) -> None:
-        if not drawings:
+    def _save_pdf(self, path: Path, pages: list[Page]) -> None:
+        if not pages:
             raise "Cannot convert empty drawings to PDF!"
 
         # initialize canvas
-        d = renderScaledDrawing(self._to_pdf_drawing(drawings[0]))
+        d = renderScaledDrawing(self._to_pdf_drawing(pages[0].drawing))
         pdf_canvas = Canvas(str(path))
         pdf_canvas.setTitle("")
         pdf_canvas.setPageSize((d.width, d.height))
 
-        for drawing in drawings:
-            renderPDF.draw(self._to_pdf_drawing(drawing), pdf_canvas, 0, 0)
+        for page in pages:
+            renderPDF.draw(self._to_pdf_drawing(page.drawing), pdf_canvas, 0, 0)
             pdf_canvas.showPage()
 
         pdf_canvas.save()
