@@ -7,10 +7,6 @@ from .dimensions import ANNOTATION_OFFSET, DASH, FONT_SIZE_BASE
 from .style import FONT_FAMILY_TECH
 
 
-def combined_size(sizes: list[tuple[int, int]]):
-    return max(s[0] for s in sizes), max(s[1] for s in sizes)
-
-
 def get_color(active: bool) -> str:
     return "red" if active else "black"
 

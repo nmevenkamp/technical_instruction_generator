@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 
-from drawsvg import Drawing, Group
+import drawsvg as draw
+
+from ..layout_base import ViewBox
 
 
 class Step(ABC):
@@ -17,14 +19,19 @@ class Step(ABC):
 
     @property
     @abstractmethod
-    def size(self) -> tuple[int, int]:
+    def view_box(self) -> ViewBox:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def view_box_closeup(self) -> ViewBox:
         raise NotImplementedError
 
     @property
     @abstractmethod
     def instruction(self) -> str:
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
-    def draw(self, drawing: Drawing | Group, active: bool = True) -> None:
+    def draw(self, drawing: draw.Drawing | draw.Group, active: bool = True, dimensions: bool = True) -> None:
         raise NotImplementedError

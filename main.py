@@ -1,6 +1,6 @@
 from technical_instruction_generator.instructions import Instructions
 from technical_instruction_generator.steps.drilling import  DrillHole
-from technical_instruction_generator.steps.face_handling import Face, ModifyFaceStep
+from technical_instruction_generator.steps.bodies import Face, ModifyFaceStep
 
 
 def main() -> None:

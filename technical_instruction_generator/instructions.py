@@ -11,16 +11,17 @@ from reportlab.graphics import renderPDF
 from reportlab.graphics.renderbase import renderScaledDrawing
 from reportlab.pdfgen.canvas import Canvas
 
-from .layout import Alignment, ExpandBehaviour, LayoutDirection, LinearLayout, Page, ScaleBehaviour, SizeBehaviour, \
-    SizedGroup
+from .layout_base import Alignment, ExpandBehaviour, LayoutDirection, ScaleBehaviour, SizedGroup
+from .layout import  LinearLayout, Page
+from .steps.views import CloseUpView, FullView
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
-    A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, HEADER_TEXT_OFFSET_X, HEADER_SIZE, INSTRUCTION_BOX_MARGIN,
+    FONT_SIZE_BASE,
+    HEADER_TEXT_OFFSET_X,
+    HEADER_SIZE,
     INSTRUCTION_BOX_PADDING,
-    MARGIN_LEFT, MARGIN_RIGHT, MARGIN_TITLE, MARGIN_TOP, MARGIN_BOTTOM,
 )
 from .steps.base import Step
-from .utils import combined_size, Text
 
 
 class Instructions:
@@ -64,7 +65,7 @@ class Instructions:
         step = self.steps[step_idx]
         step_id = step.identifier or f"{step_idx + 1}"
 
-        box = SizedGroup(width=None, height=600)
+        box = SizedGroup(width=None, height=400)
         size_behaviour = ExpandBehaviour(direction=LayoutDirection.HORIZONTAL, keep_aspect_ratio=False)
         if not page.layout.add_group(box, size_behaviour):
             return False
@@ -87,16 +88,17 @@ class Instructions:
         box.append(text)
 
         # add layout containing steps
-        step_layout = LinearLayout(width=box.width - 2 * INSTRUCTION_BOX_PADDING, height=box.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
-        box.append(draw.Use(step_layout, INSTRUCTION_BOX_PADDING, HEADER_SIZE + INSTRUCTION_BOX_PADDING))
+        x = INSTRUCTION_BOX_PADDING
+        y = HEADER_SIZE + INSTRUCTION_BOX_PADDING
+        width = box.width - 2 * INSTRUCTION_BOX_PADDING
+        height = box.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING
+        step_layout = LinearLayout(width=width, height=height, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
+        box.append(draw.Use(step_layout, x, y))
 
-        # add steps
-        width, height = combined_size([step.size for step in self.steps])
-        full_view = SizedGroup(width=width, height=height, flip_y=True)
-        for step_ in self.steps[:-step_idx]:
-            step_.draw(full_view, active=False)
-        step.draw(full_view, active=True)
-        step_layout.add_group(full_view, size_behaviour=ScaleBehaviour())
+        # add step views
+        steps = self.steps[:(step_idx + 1)]
+        step_layout.add_view(CloseUpView(steps, padding=(50, 0)), size_behaviour=ScaleBehaviour())
+        step_layout.add_view(FullView(steps), size_behaviour=ScaleBehaviour())
 
         return True
 

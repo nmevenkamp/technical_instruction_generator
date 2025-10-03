@@ -5,6 +5,7 @@ from drawsvg import Drawing, Group
 
 from .base import Step
 from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
+from ..layout_base import ViewBox
 from ..utils import draw_position, get_color, Text
 
 
@@ -17,11 +18,25 @@ class DrillHole(Step):
         self.depth = depth
 
     @property
-    def size(self) -> tuple[int, int]:
-        return (
-            math.ceil(self.x + self.radius),
-            math.ceil(self.y + self.radius),
+    def center(self) -> tuple[float, float]:
+        return self.x, self.y
+
+    @property
+    def size(self) -> tuple[float, float]:
+        return self.diameter, self.diameter
+
+    @property
+    def view_box(self) -> ViewBox:
+        return ViewBox(
+            math.floor(self.x - self.radius),
+            math.floor(self.y - self.radius),
+            math.ceil(2 * self.radius),
+            math.ceil(2 * self.radius),
         )
+
+    @property
+    def view_box_closeup(self) -> ViewBox:
+        return self.view_box
 
     @property
     def radius(self) -> float:
@@ -42,21 +57,19 @@ class DrillHole(Step):
         res += "."
         return res
 
-    def draw(self, drawing: Drawing | Group, active: bool = True) -> None:
+    def draw(self, drawing: Drawing | Group, active: bool = True, dimensions: bool = True) -> None:
         color = get_color(active)
         drawing.append(draw.Circle(self.x, self.y, self.radius, stroke=color, fill='none'))
-        if not active:
-            return
 
-        # hole dimensions
-        drawing.append(Text(
-            self.annotation,
-            FONT_SIZE_BASE,
-            self.x + self.radius + ANNOTATION_OFFSET,
-            self.y,
-            text_anchor='start',
-            dominant_baseline='middle',
-            transform_children='scale(1,-1)',
-        ))
+        if dimensions:
+            drawing.append(Text(
+                self.annotation,
+                FONT_SIZE_BASE,
+                self.x + self.radius + ANNOTATION_OFFSET,
+                self.y,
+                text_anchor='start',
+                dominant_baseline='middle',
+                transform_children='scale(1,-1)',
+            ))
 
-        draw_position(drawing, self.x, self.y)
+            draw_position(drawing, self.x, self.y)

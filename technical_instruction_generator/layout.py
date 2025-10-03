@@ -1,74 +1,10 @@
-from enum import Enum
-from typing import Any
-
 import drawsvg as draw
 
-from technical_instruction_generator.dimensions import A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, \
+from .dimensions import A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, \
     INSTRUCTION_BOX_PADDING, MARGIN_BOTTOM, MARGIN_LEFT, MARGIN_RIGHT, MARGIN_TITLE, MARGIN_TOP
-from technical_instruction_generator.style import FONT_FAMILY_TEXT
-
-
-class SizedGroup(draw.Group):
-    def __init__(self, *args, width: int | None = None, height: int | None = None, flip_y: bool = False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.width = width
-        self.height = height
-
-        if flip_y:
-            self.args['transform'] = f'scale(1,-1) translate(0,-{height})'
-
-
-class LayoutDirection(Enum):
-    HORIZONTAL = 0
-    VERTICAL = 1
-
-class Alignment(Enum):
-    START = 0
-    END = 1
-    CENTER = 2
-
-
-class SizeBehaviour:
-    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        raise NotImplementedError()
-
-
-class FixedSizeBehaviour(SizeBehaviour):
-    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        return (size[0], size[1]), (1.0, 1.0)
-
-
-class ScaleBehaviour(SizeBehaviour):
-    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        if size[0] is None and size[1] is None:
-            raise ValueError("Can't scale group that has neither `width` nor `height`")
-
-        if size[0] is None:
-            scale = available_size[1] / size[1]
-        elif size[1] is None:
-            scale = available_size[0] / size[0]
-        else:
-            scale = min(available_size[0] / size[0], available_size[1] / size[1])
-
-        return (int(size[0] * scale), int(size[1] * scale)), (scale, scale)
-
-
-class ExpandBehaviour(SizeBehaviour):
-    def __init__(self, direction: LayoutDirection | None = None, keep_aspect_ratio: bool = True) -> None:
-        self.direction = direction
-        self.keep_aspect_ratio = keep_aspect_ratio
-
-    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        size = list(size)  # need copy to be able to modify
-        if not self.keep_aspect_ratio or size[0] is None or size[1] is None:
-            if self.direction is None or self.direction == LayoutDirection.HORIZONTAL:
-                size[0] = available_size[0]
-            if self.direction is None or self.direction == LayoutDirection.VERTICAL:
-                size[1] = available_size[1]
-            return (size[0], size[1]), (1.0, 1.0)
-
-        factor = min(available_size[0] / size[0], available_size[1] / size[1])
-        return (int(size[0] * factor), int(size[1] * factor)), (1, 1)
+from .layout_base import FixedSizeBehaviour, SizedGroup, SizeBehaviour, LayoutDirection, Alignment
+from .steps.views import View
+from .style import FONT_FAMILY_TEXT
 
 
 class Page:
@@ -102,14 +38,16 @@ class LinearLayout(SizedGroup):
         self.direction = direction
         self.alignment = alignment
         self.padding = padding
-        self._groups: list[SizedGroup] = []
+        self._start = 0
 
-    def add_group(self, group: SizedGroup, size_behaviour: SizeBehaviour | None = None) -> bool:
-        start = sum(self._get_length(use) for use in self._groups) + self.padding * len(self._groups)
+    def add_view(self, view: View, size_behaviour: SizeBehaviour = None) -> bool:
+        return self.add_group(view.get_group(), size_behaviour=size_behaviour, clip_path=view.get_clip_path())
+
+    def add_group(self, group: SizedGroup, size_behaviour: SizeBehaviour | None = None, clip_path: draw.ClipPath | None = None) -> bool:
         if self.direction == LayoutDirection.HORIZONTAL:
-            available_size = self.width - start, self.height
+            available_size = self.width - self._start, self.height
         else:
-            available_size = self.width, self.height - start
+            available_size = self.width, self.height - self._start
 
         if size_behaviour is None:
             size_behaviour = FixedSizeBehaviour()
@@ -122,7 +60,7 @@ class LinearLayout(SizedGroup):
         group.height = size[1]
 
         if self.direction == LayoutDirection.HORIZONTAL:
-            x = start
+            x = self._start
             if self.alignment == Alignment.START:
                 y = 0
             elif self.alignment == Alignment.END:
@@ -130,7 +68,7 @@ class LinearLayout(SizedGroup):
             else:
                 y = (self.height - group.height) / 2
         else:
-            y = start
+            y = self._start
             if self.alignment == Alignment.START:
                 x = 0
             elif self.alignment == Alignment.END:
@@ -138,10 +76,12 @@ class LinearLayout(SizedGroup):
             else:
                 x = (self.width - group.width) / 2
 
+        x /= scale[0]
+        y /= scale[1]
         transform = f"scale({scale[0]}, {scale[1]})"
-        self.append(draw.Use(group, x / scale[0], y / scale[1], transform=transform))
-        self._groups.append(group)
-        return True
+        self.append(draw.Use(group, x, y, transform=transform, clip_path=clip_path))
 
-    def _get_length(self, group: SizedGroup) -> int:
-        return group.width if self.direction == LayoutDirection.HORIZONTAL else group.height
+        self._start += group.width if self.direction == LayoutDirection.HORIZONTAL else group.height
+        self._start += self.padding
+
+        return True
