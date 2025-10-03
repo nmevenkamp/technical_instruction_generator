@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 import drawsvg as draw
 
@@ -8,10 +9,13 @@ from technical_instruction_generator.style import FONT_FAMILY_TEXT
 
 
 class SizedGroup(draw.Group):
-    def __init__(self, *args, width: int | None = None, height: int | None = None, **kwargs):
+    def __init__(self, *args, width: int | None = None, height: int | None = None, flip_y: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.width = width
         self.height = height
+
+        if flip_y:
+            self.args['transform'] = f'scale(1,-1) translate(0,-{height})'
 
 
 class LayoutDirection(Enum):
@@ -25,28 +29,28 @@ class Alignment(Enum):
 
 
 class SizeBehaviour:
-    def get_size_and_scale(self, group: SizedGroup, available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
+    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
         raise NotImplementedError()
 
 
 class FixedSizeBehaviour(SizeBehaviour):
-    def get_size_and_scale(self, group: SizedGroup, available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        return (group.width, group.height), (1.0, 1.0)
+    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
+        return (size[0], size[1]), (1.0, 1.0)
 
 
 class ScaleBehaviour(SizeBehaviour):
-    def get_size_and_scale(self, group: SizedGroup, available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        if group.width is None and group.height is None:
+    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
+        if size[0] is None and size[1] is None:
             raise ValueError("Can't scale group that has neither `width` nor `height`")
 
-        if group.width is None:
-            scale = available_size[1] / group.height
-        elif group.height is None:
-            scale = available_size[0] / group.width
+        if size[0] is None:
+            scale = available_size[1] / size[1]
+        elif size[1] is None:
+            scale = available_size[0] / size[0]
         else:
-            scale = min(available_size[0] / group.width, available_size[1] / group.height)
+            scale = min(available_size[0] / size[0], available_size[1] / size[1])
 
-        return (int(group.width * scale), int(group.height * scale)), (scale, scale)
+        return (int(size[0] * scale), int(size[1] * scale)), (scale, scale)
 
 
 class ExpandBehaviour(SizeBehaviour):
@@ -54,16 +58,17 @@ class ExpandBehaviour(SizeBehaviour):
         self.direction = direction
         self.keep_aspect_ratio = keep_aspect_ratio
 
-    def get_size_and_scale(self, group: SizedGroup, available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
-        if not self.keep_aspect_ratio or group.width is None or group.height is None:
+    def get_size_and_scale(self, size: tuple[int, int], available_size: tuple[int, int]) -> tuple[tuple[int, int], tuple[float, float]]:
+        size = list(size)  # need copy to be able to modify
+        if not self.keep_aspect_ratio or size[0] is None or size[1] is None:
             if self.direction is None or self.direction == LayoutDirection.HORIZONTAL:
-                group.width = available_size[0]
+                size[0] = available_size[0]
             if self.direction is None or self.direction == LayoutDirection.VERTICAL:
-                group.height = available_size[1]
-            return
+                size[1] = available_size[1]
+            return (size[0], size[1]), (1.0, 1.0)
 
-        factor = min(available_size[0] / group.width, available_size[1] / group.height)
-        return (int(group.width * factor), int(group.height * factor)), (1, 1)
+        factor = min(available_size[0] / size[0], available_size[1] / size[1])
+        return (int(size[0] * factor), int(size[1] * factor)), (1, 1)
 
 
 class Page:
@@ -97,14 +102,10 @@ class LinearLayout(SizedGroup):
         self.direction = direction
         self.alignment = alignment
         self.padding = padding
-        self._named_groups: dict[str, SizedGroup] = {}
         self._groups: list[SizedGroup] = []
 
-    def __item__(self, identifier: str) -> SizedGroup | None:
-        return self._named_groups.get(identifier, None)
-
-    def add_group(self, group: SizedGroup, identifier: str | None = None, size_behaviour: SizeBehaviour | None = None) -> bool:
-        start = sum(self._get_length(group) for group in self._groups) + self.padding * len(self._groups)
+    def add_group(self, group: SizedGroup, size_behaviour: SizeBehaviour | None = None) -> bool:
+        start = sum(self._get_length(use) for use in self._groups) + self.padding * len(self._groups)
         if self.direction == LayoutDirection.HORIZONTAL:
             available_size = self.width - start, self.height
         else:
@@ -112,16 +113,13 @@ class LinearLayout(SizedGroup):
 
         if size_behaviour is None:
             size_behaviour = FixedSizeBehaviour()
-        size, scale = size_behaviour.get_size_and_scale(group, available_size)
+        size, scale = size_behaviour.get_size_and_scale((group.width, group.height), available_size)
 
         if size[0] > available_size[0] or size[1] > available_size[1]:
             return False
 
         group.width = size[0]
         group.height = size[1]
-
-        size_wrapper = SizedGroup(width=size[0], height=size[1], transform=f"scale({scale[0]}, {scale[1]})")
-        size_wrapper.append(draw.Use(group, 0, 0))
 
         if self.direction == LayoutDirection.HORIZONTAL:
             x = start
@@ -140,11 +138,9 @@ class LinearLayout(SizedGroup):
             else:
                 x = (self.width - group.width) / 2
 
-        self.append(draw.Use(size_wrapper, x, y))
+        transform = f"scale({scale[0]}, {scale[1]})"
+        self.append(draw.Use(group, x / scale[0], y / scale[1], transform=transform))
         self._groups.append(group)
-        if identifier is not None:
-            self._named_groups[identifier] = group
-
         return True
 
     def _get_length(self, group: SizedGroup) -> int:

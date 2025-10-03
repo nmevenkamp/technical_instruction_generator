@@ -11,7 +11,8 @@ from reportlab.graphics import renderPDF
 from reportlab.graphics.renderbase import renderScaledDrawing
 from reportlab.pdfgen.canvas import Canvas
 
-from .layout import Alignment, ExpandBehaviour, LayoutDirection, LinearLayout, Page, ScaleBehaviour, SizedGroup
+from .layout import Alignment, ExpandBehaviour, LayoutDirection, LinearLayout, Page, ScaleBehaviour, SizeBehaviour, \
+    SizedGroup
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
     A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, HEADER_TEXT_OFFSET_X, HEADER_SIZE, INSTRUCTION_BOX_MARGIN,
@@ -48,32 +49,31 @@ class Instructions:
         page_idx = 0
         page = Page(page_idx, self.title)
         for step_idx in range(len(self.steps)):
-            step_group = self._generate_step(step_idx)
-
-            if not page.layout.add_group(step_group):
+            if not self._add_step(page, step_idx):
                 pages.append(page)
                 page_idx += 1
                 page = Page(page_idx)
-                if not page.layout.add_group(step_group):
+                if not self._add_step(page, step_idx):
                     raise ValueError(f"Unable to add step {step_idx} `{self.steps[step_idx].instruction}` to new page!")
 
         pages.append(page)
 
         return pages
 
-    def _generate_step(self, step_idx: int) -> SizedGroup:
+    def _add_step(self, page: Page, step_idx: int) -> bool:
         step = self.steps[step_idx]
         step_id = step.identifier or f"{step_idx + 1}"
 
-        group = SizedGroup(width=A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, height=600)
-        # , size_behaviour=ExpandBehaviour(direction=LayoutDirection.HORIZONTAL, keep_aspect_ratio=False)
-        # TODO: actaully want to auto resize this before continuing
+        box = SizedGroup(width=None, height=600)
+        size_behaviour = ExpandBehaviour(direction=LayoutDirection.HORIZONTAL, keep_aspect_ratio=False)
+        if not page.layout.add_group(box, size_behaviour):
+            return False
 
-        group.append(draw.Rectangle(0, 0, group.width, group.height, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR,
+        box.append(draw.Rectangle(0, 0, box.width, box.height, fill='white', stroke=INSTRUCTION_BOX_STROKE_COLOR,
                                     stroke_width=2, rx='5', ry='5'))
 
         # add instructions
-        group.append(draw.Line(0, HEADER_SIZE, group.width, HEADER_SIZE, stroke=INSTRUCTION_BOX_STROKE_COLOR))
+        box.append(draw.Line(0, HEADER_SIZE, box.width, HEADER_SIZE, stroke=INSTRUCTION_BOX_STROKE_COLOR))
         text = draw.Text(
             f"Schritt {step_id}:",
             FONT_SIZE_BASE,
@@ -84,21 +84,21 @@ class Instructions:
             font_family=FONT_FAMILY_TEXT,
         )
         text.append(draw.TSpan(step.instruction, dx=5, font_weight='normal'))
-        group.append(text)
+        box.append(text)
 
-        steps_layout = LinearLayout(width=group.width - 2 * INSTRUCTION_BOX_PADDING, height=group.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
-        group.append(draw.Use(steps_layout, INSTRUCTION_BOX_PADDING, HEADER_SIZE + INSTRUCTION_BOX_PADDING))
+        # add layout containing steps
+        step_layout = LinearLayout(width=box.width - 2 * INSTRUCTION_BOX_PADDING, height=box.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
+        box.append(draw.Use(step_layout, INSTRUCTION_BOX_PADDING, HEADER_SIZE + INSTRUCTION_BOX_PADDING))
 
         # add steps
         width, height = combined_size([step.size for step in self.steps])
-        full_view = SizedGroup(width=width, height=height, transform=f'scale(1,-1) translate(0,-{height})')
+        full_view = SizedGroup(width=width, height=height, flip_y=True)
         for step_ in self.steps[:-step_idx]:
             step_.draw(full_view, active=False)
         step.draw(full_view, active=True)
+        step_layout.add_group(full_view, size_behaviour=ScaleBehaviour())
 
-        steps_layout.add_group(full_view, size_behaviour=ScaleBehaviour())
-
-        return group
+        return True
 
     def _save_pdf(self, path: Path, pages: list[Page]) -> None:
         if not pages:
