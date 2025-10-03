@@ -25,9 +25,20 @@ class SizedGroup(draw.Group):
         super().__init__(*args, **kwargs)
         self.width = width
         self.height = height
+        self._text: list[draw.Text] = []
 
         if flip_y:
             self.args['transform'] = f'scale(1,-1) translate(0,-{height})'
+
+    @property
+    def text(self) -> list[draw.Text]:
+        return self._text
+
+    def register_text(self, text: draw.Text | list[draw.Text]) -> None:
+        if isinstance(text, draw.Text):
+            self._text.append(text)
+        else:
+            self._text.extend(text)
 
 
 class LayoutDirection(Enum):

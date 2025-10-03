@@ -70,6 +70,8 @@ class LinearLayout(SizedGroup):
         if size[0] > available_size[0] or size[1] > available_size[1]:
             return False
 
+        orig_height = group.height
+
         group.width = size[0]
         group.height = size[1]
 
@@ -90,12 +92,27 @@ class LinearLayout(SizedGroup):
             else:
                 x = (self.width - group.width) / 2
 
-        self.append(draw.Use(
+        scaled_group = draw.Group()
+        scaled_group.append(draw.Use(
             group,
-            x / scale[0] + draw_offset[0],
-            y / scale[1] + draw_offset[1],
+            0,
+            0,
             transform=f"scale({scale[0]},{scale[1]})",
             clip_path=clip_path,
+        ))
+        for text in group.text:
+            text.args['x'] *= scale[0]
+            text.args['y'] = scale[1] * (orig_height - text.args['y'])
+            scaled_group.append(draw.Use(
+                text,
+                0,
+                0,
+            ))
+
+        self.append(draw.Use(
+            scaled_group,
+            x + draw_offset[0] * scale[0],
+            y + draw_offset[1] * scale[1],
         ))
 
         self._start += group.width if self.direction == LayoutDirection.HORIZONTAL else group.height

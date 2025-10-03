@@ -5,8 +5,9 @@ from drawsvg import Drawing, Group
 
 from .base import Step
 from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
-from ..layout_base import ViewBox
-from ..utils import draw_position, get_color, Text
+from ..layout_base import SizedGroup, ViewBox
+from ..style import FONT_FAMILY_TECH
+from ..utils import draw_position, get_position_text, get_color, Text
 
 
 class DrillHole(Step):
@@ -57,19 +58,23 @@ class DrillHole(Step):
         res += "."
         return res
 
-    def draw(self, drawing: Drawing | Group, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, group: SizedGroup, active: bool = True, dimensions: bool = True) -> None:
         color = get_color(active)
-        drawing.append(draw.Circle(self.x, self.y, self.radius, stroke=color, fill='none'))
+        group.append(draw.Circle(self.x, self.y, self.radius, stroke=color, fill='none'))
 
         if dimensions:
-            drawing.append(Text(
+            draw_position(group, self.x, self.y)
+
+            group.register_text(draw.Text(
                 self.annotation,
                 FONT_SIZE_BASE,
                 self.x + self.radius + ANNOTATION_OFFSET,
                 self.y,
                 text_anchor='start',
                 dominant_baseline='middle',
-                transform_children='scale(1,-1)',
+                font_family=FONT_FAMILY_TECH,
             ))
+            group.register_text(get_position_text(self.x, self.y))
 
-            draw_position(drawing, self.x, self.y)
+
+
