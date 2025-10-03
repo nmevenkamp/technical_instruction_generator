@@ -92,7 +92,13 @@ class Instructions:
         y = HEADER_SIZE + INSTRUCTION_BOX_PADDING
         width = box.width - 2 * INSTRUCTION_BOX_PADDING
         height = box.height - HEADER_SIZE - 2 * INSTRUCTION_BOX_PADDING
-        step_layout = LinearLayout(width=width, height=height, alignment=Alignment.CENTER, direction=LayoutDirection.HORIZONTAL, padding=5)
+        step_layout = LinearLayout(
+            width=width,
+            height=height,
+            alignment=Alignment.CENTER,
+            direction=LayoutDirection.HORIZONTAL,
+            padding=32,
+        )
         box.append(draw.Use(step_layout, x, y))
 
         # add step views

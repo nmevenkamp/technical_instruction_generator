@@ -9,7 +9,7 @@ def main() -> None:
     manual = Instructions(
         title="Tims Abenteuerbett",
         steps=[
-            ModifyFaceStep(face, DrillHole(10, 10, 4)),
+            ModifyFaceStep(face, DrillHole(100, 10, 4)),
             ModifyFaceStep(face, DrillHole(10, 90, 4)),
             ModifyFaceStep(face, DrillHole(10, 90, 4)),
             ModifyFaceStep(face, DrillHole(10, 90, 4)),

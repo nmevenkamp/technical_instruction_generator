@@ -41,9 +41,23 @@ class LinearLayout(SizedGroup):
         self._start = 0
 
     def add_view(self, view: View, size_behaviour: SizeBehaviour = None) -> bool:
-        return self.add_group(view.get_group(), size_behaviour=size_behaviour, clip_path=view.get_clip_path())
+        return self.add_group(
+            view.get_group(),
+            size_behaviour=size_behaviour,
+            draw_offset=view.get_draw_offset(),
+            clip_path=view.get_clip_path(),
+        )
 
-    def add_group(self, group: SizedGroup, size_behaviour: SizeBehaviour | None = None, clip_path: draw.ClipPath | None = None) -> bool:
+    def add_group(
+            self,
+            group: SizedGroup,
+            size_behaviour: SizeBehaviour | None = None,
+            draw_offset: tuple[int, int] | None = None,
+            clip_path: draw.ClipPath | None = None,
+        ) -> bool:
+        if draw_offset is None:
+            draw_offset = 0, 0
+
         if self.direction == LayoutDirection.HORIZONTAL:
             available_size = self.width - self._start, self.height
         else:
@@ -76,10 +90,13 @@ class LinearLayout(SizedGroup):
             else:
                 x = (self.width - group.width) / 2
 
-        x /= scale[0]
-        y /= scale[1]
-        transform = f"scale({scale[0]}, {scale[1]})"
-        self.append(draw.Use(group, x, y, transform=transform, clip_path=clip_path))
+        self.append(draw.Use(
+            group,
+            x / scale[0] + draw_offset[0],
+            y / scale[1] + draw_offset[1],
+            transform=f"scale({scale[0]},{scale[1]})",
+            clip_path=clip_path,
+        ))
 
         self._start += group.width if self.direction == LayoutDirection.HORIZONTAL else group.height
         self._start += self.padding
