@@ -1,6 +1,6 @@
 from technical_instruction_generator.instructions import Instructions
 from technical_instruction_generator.steps.drilling import  DrillHole
-from technical_instruction_generator.steps.bodies import Face, ModifyFaceStep, Bar, ModifyBarStep
+from technical_instruction_generator.steps.bodies import Bar, ModifyBarStep
 
 
 def main() -> None:
@@ -9,9 +9,6 @@ def main() -> None:
     manual = Instructions(
         title="Tims Abenteuerbett",
         steps=[
-            # ModifyFaceStep(face, DrillHole(100, 10, 4)),
-            # ModifyFaceStep(face, DrillHole(10, 90, 4)),
-            # ModifyFaceStep(face, DrillHole(10, 90, 4)),
             ModifyBarStep(bar1, 'D', DrillHole(200, 21, 20, 12, False)),
             ModifyBarStep(bar1, 'D', DrillHole(200, 21, 7, )),
             ModifyBarStep(bar1, 'D', DrillHole(100, 21, 20, 12, False)),
