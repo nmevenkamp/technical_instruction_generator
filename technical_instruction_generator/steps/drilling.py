@@ -62,7 +62,7 @@ class DrillHole(Step):
 
     @property
     def instruction(self) -> str:
-        res = f"Bohre ein Loch bei ({self.x}, {self.y}) mit Durchmesser {self.diameter}"
+        res = f"Bohre Loch bei ({self.x}, {self.y}) mit Durchmesser {self.diameter}"
         if self.depth > 0:
             res += f" und Tiefe {self.depth}"
         res += "."

@@ -1,4 +1,5 @@
 import math
+import re
 from abc import ABC
 
 import drawsvg as draw
@@ -51,8 +52,43 @@ class ModifyMultiBodyStep(Step):
 
     @property
     def instruction(self) -> str:
-        bodies_str = ",".join(body.identifier for body in self.bodies)
-        return f"{self.step.instruction} Wiederhole auf {bodies_str}."
+        return f"{self.step.instruction} Wiederhole für {self.bodies_str}."
+
+    @property
+    def bodies_str(self) -> str:
+        """Print a string that lists all the bodies in this step comma separated.
+
+        Bodies are sorted alphanumerically.
+        Consecutive strs of the form `x.y` are joined together (e.g. 1.4,1.5,1.6 -> 1.4-1.6)
+        """
+        bodies_strs = sorted([body.identifier for body in self.bodies])
+        pattern = re.compile(r'[8-9|1[0-3][.][0-9|1[0-5]')
+        nrs_list = [
+            [int(nr) for nr in body_str.split('.')] if re.search(pattern, body_str) else None
+            for body_str in bodies_strs
+        ]
+
+        bodies_str = ""
+        prev_nrs = None
+        for body_str, body_nrs in zip(bodies_strs, nrs_list):
+            if body_nrs is None:
+                bodies_str += "," + body_str
+                prev_nrs = None
+                continue
+            if prev_nrs is None:
+                bodies_str += "," + body_str
+                prev_nrs = body_nrs
+                continue
+            if body_nrs[0] == prev_nrs[0] and body_nrs[1] == (prev_nrs[1] + 1):
+                prev_nrs = body_nrs
+                continue
+            bodies_str += "-" + ".".join([str(nr) for nr in prev_nrs])
+            prev_nrs = body_nrs
+            bodies_str += "," + body_str
+        if prev_nrs is not None:
+            bodies_str += "-" + ".".join([str(nr) for nr in prev_nrs])
+
+        return bodies_str[1:]
 
     @property
     def view_box(self) -> ViewBox:
