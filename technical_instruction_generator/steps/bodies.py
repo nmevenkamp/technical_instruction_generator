@@ -196,6 +196,8 @@ class ModifyBarStep(Step):
                         stroke='gray',
                         stroke_dasharray=STROKE_DASH_ARRAY,
                     ))
+                y0 = y_face if face_sign >= 0 else y_face + face.height
+                y1 = y0 + face_sign * height
                 for sign in [-1, 1]:
                     group.append(draw.Line(
                         x + self.step.x + sign * self.step.radius,

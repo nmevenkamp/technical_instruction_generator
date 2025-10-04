@@ -82,6 +82,7 @@ class DrillHole(Step):
                 FONT_SIZE_BASE,
                 x + self.x + self.radius + ANNOTATION_OFFSET,
                 y + self.y,
+                fill='red',
                 text_anchor='start',
                 dominant_baseline='middle',
                 font_family=FONT_FAMILY_TECH,

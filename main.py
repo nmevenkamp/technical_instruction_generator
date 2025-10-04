@@ -14,6 +14,9 @@ def main() -> None:
             # ModifyFaceStep(face, DrillHole(100, 10, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
+            ModifyBarStep(bar, 'D', DrillHole(200, 21, 20, 12, False)),
+            ModifyBarStep(bar, 'D', DrillHole(200, 21, 7, )),
+            ModifyBarStep(bar, 'D', DrillHole(100, 21, 20, 12, False)),
             ModifyBarStep(bar, 'D', DrillHole(20, 21, 20, 12, False)),
         ]
     )
