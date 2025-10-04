@@ -5,6 +5,7 @@ from .dimensions import A4_HEIGHT, A4_WIDTH, FONT_SIZE_BASE, FONT_SIZE_TITLE, \
 from .layout_base import FixedSizeBehaviour, SizedGroup, SizeBehaviour, LayoutDirection, Alignment
 from .steps.views import View
 from .style import FONT_FAMILY_TEXT
+from .utils import get_text_background
 
 
 class Page:
@@ -103,6 +104,7 @@ class LinearLayout(SizedGroup):
         for text in group.text:
             text.args['x'] *= scale[0]
             text.args['y'] = scale[1] * (orig_height - text.args['y'])
+            scaled_group.append(get_text_background(text))
             scaled_group.append(draw.Use(
                 text,
                 0,

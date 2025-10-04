@@ -110,7 +110,7 @@ class Instructions:
                 if (isinstance(step_, ModifyBodyStep) and step_.body == step.body)
                 or (isinstance(step_, ModifyMultiBodyStep) and step in step_.bodies)
             ]
-            for step_ in steps:
+            for step_ in steps[:-1]:
                 step.set_active_body(step_.body)
         elif isinstance(step, ModifyMultiBodyStep):
             steps = [
@@ -118,7 +118,7 @@ class Instructions:
                 if (isinstance(step_, ModifyBodyStep) and step_.body in step.bodies)
                 or (isinstance(step_, ModifyMultiBodyStep) and step.get_common_bodies(step_))
             ]
-            for step_ in steps:
+            for step_ in steps[:-1]:
                 step_.set_active_bodies(step.bodies)
         else:
             steps = [step]

@@ -45,3 +45,23 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
             font_family=FONT_FAMILY_TECH,
         ),
     ]
+
+
+def get_text_background(text: Any) -> draw.Rectangle:
+    width = len(text.escaped_text) * text.args['font-size']
+    height = text.args['font-size']
+    text_anchor = text.args.get('text-anchor', 'start')
+    if text_anchor == 'start':
+        x = 0
+    elif text_anchor == 'middle':
+        x = -width / 2
+    else:
+        x = -width
+    dominant_baseline = text.args.get('dominant-baseline', 'auto')
+    if dominant_baseline == 'auto':
+        y = -height
+    elif dominant_baseline == 'middle':
+        y = -height / 2
+    else:
+        y = 0
+    return draw.Rectangle(x + text.args['x'], y + text.args['y'], width, height, fill='white')
