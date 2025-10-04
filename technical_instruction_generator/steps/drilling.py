@@ -58,7 +58,7 @@ class DrillHole(Step):
         res += "."
         return res
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False) -> None:
         color = get_color(active)
         group.append(draw.Circle(x + self.x, y + self.y, self.radius, stroke=color, fill='none'))
 

@@ -3,8 +3,10 @@ import math
 import drawsvg as draw
 
 from .base import Step
+from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout import LinearLayout
 from ..layout_base import LayoutDirection, SizedGroup, ViewBox
+from ..style import FONT_FAMILY_TECH
 
 
 class Face:
@@ -118,7 +120,7 @@ class ModifyBarStep(Step):
 
     @property
     def view_box(self) -> ViewBox:
-        return ViewBox(0, 0, self.layout_width, self.layout_height)
+        return ViewBox(-FACE_ANNOTATION_OFFSET, 0, self.layout_width + FACE_ANNOTATION_OFFSET, self.layout_height)
 
     @property
     def view_box_closeup(self) -> ViewBox:
@@ -128,9 +130,22 @@ class ModifyBarStep(Step):
         y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
         return ViewBox(x0, y0 + self.y0_offset, x1 - x0, y1 - y0)
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up=False) -> None:
         for key, face in self.bar.faces.items():
             face.draw(group, x, y)
+
+            # annotate face
+            if not close_up or face.identifier == self.face_identifier:
+                group.register_text(draw.Text(
+                    face.identifier,
+                    FONT_SIZE_BASE,
+                    x - FACE_ANNOTATION_OFFSET,
+                    y + face.height / 2,
+                    text_anchor='end',
+                    dominant_baseline='middle',
+                    font_family=FONT_FAMILY_TECH,
+                ))
+
             if key == self.face_identifier:
                 self.step.draw(group, x, y, active, dimensions)
             y += face.height + self.padding
