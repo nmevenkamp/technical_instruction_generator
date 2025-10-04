@@ -5,11 +5,11 @@ import drawsvg as draw
 
 from .dimensions import ANNOTATION_OFFSET, DIMENSIONS_OFFSET, FONT_SIZE_BASE
 from .layout_base import SizedGroup
-from .style import DASH, FONT_FAMILY_TECH
+from .style import ACTIVE_STROKE_COLOR, DASH, DIMENSIONS_FONT_COLOR, DIMENSIONS_LINE_COLOR, FONT_FAMILY_TECH
 
 
 def get_color(active: bool) -> str:
-    return "red" if active else "black"
+    return ACTIVE_STROKE_COLOR if active else "black"
 
 
 class Text(draw.Text):
@@ -18,8 +18,8 @@ class Text(draw.Text):
 
 
 def draw_position(group: SizedGroup, x0: float, x1: float, y0: float, y1: float) -> None:
-    group.draw(draw.Line(x0, y1, x1, y1, stroke='red', stroke_width=0.5, stroke_dasharray=DASH))  # x
-    group.draw(draw.Line(x1, y0, x1, y1, stroke='red', stroke_width=0.5, stroke_dasharray=DASH))  # y
+    group.draw(draw.Line(x0, y1, x1, y1, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # x
+    group.draw(draw.Line(x1, y0, x1, y1, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # y
 
 
 def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
@@ -29,7 +29,7 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
             FONT_SIZE_BASE,
             x1 + math.copysign(DIMENSIONS_OFFSET, x0 - x1),
             y1 + ANNOTATION_OFFSET,
-            fill='red',
+            fill=DIMENSIONS_FONT_COLOR,
             text_anchor='middle',
             dominant_baseline='auto',
             font_family=FONT_FAMILY_TECH,
@@ -39,7 +39,7 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
             FONT_SIZE_BASE,
             x1 + ANNOTATION_OFFSET,
             y1 + math.copysign(DIMENSIONS_OFFSET, y0 - y1),
-            fill='red',
+            fill=DIMENSIONS_FONT_COLOR,
             text_anchor='start',
             dominant_baseline='middle',
             font_family=FONT_FAMILY_TECH,

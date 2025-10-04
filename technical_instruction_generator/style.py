@@ -5,3 +5,8 @@ FONT_FAMILY_TEXT = 'Georgia'
 FONT_FAMILY_TECH = 'Arial Black'
 
 DASH = '3,2'
+
+DIMENSIONS_FONT_COLOR = 'purple'
+DIMENSIONS_LINE_COLOR = 'purple'
+ACTIVE_STROKE_COLOR = 'red'
+DEPTH_HOLE_COLOR = 'gray'

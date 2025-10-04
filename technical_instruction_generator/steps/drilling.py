@@ -6,7 +6,7 @@ from drawsvg import Drawing, Group
 from .base import Step
 from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
-from ..style import FONT_FAMILY_TECH
+from ..style import DIMENSIONS_FONT_COLOR, FONT_FAMILY_TECH
 from ..utils import draw_position, get_position_text, get_color, Text
 
 
@@ -83,7 +83,7 @@ class DrillHole(Step):
                 FONT_SIZE_BASE,
                 x + self.x + self.radius + ANNOTATION_OFFSET,
                 y + self.y,
-                fill='red',
+                fill=DIMENSIONS_FONT_COLOR,
                 text_anchor='start',
                 dominant_baseline='middle',
                 font_family=FONT_FAMILY_TECH,
