@@ -7,7 +7,7 @@ from .base import Step
 from .drilling import DrillHole
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
-from ..style import FONT_FAMILY_TECH, STROKE_DASH_ARRAY
+from ..style import FONT_FAMILY_TECH, DASH
 
 
 class Body:
@@ -213,7 +213,7 @@ class ModifyBarStep(ModifyBodyStep):
                         x + self.step.x + self.step.radius,
                         y1,
                         stroke='gray',
-                        stroke_dasharray=STROKE_DASH_ARRAY,
+                        stroke_dasharray=DASH,
                     ))
                 y0 = y_face if face_sign >= 0 else y_face + face.height
                 y1 = y0 + face_sign * height
@@ -224,6 +224,6 @@ class ModifyBarStep(ModifyBodyStep):
                         x + self.step.x + sign * self.step.radius,
                         y1,
                         stroke='gray',
-                        stroke_dasharray=STROKE_DASH_ARRAY,
+                        stroke_dasharray=DASH,
                         fill='none',
                     ))

@@ -3,9 +3,9 @@ from typing import Any
 
 import drawsvg as draw
 
-from .dimensions import ANNOTATION_OFFSET, DASH, DIMENSIONS_OFFSET, FONT_SIZE_BASE
+from .dimensions import ANNOTATION_OFFSET, DIMENSIONS_OFFSET, FONT_SIZE_BASE
 from .layout_base import SizedGroup
-from .style import FONT_FAMILY_TECH
+from .style import DASH, FONT_FAMILY_TECH
 
 
 def get_color(active: bool) -> str:
