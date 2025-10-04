@@ -3,7 +3,7 @@ from typing import Any
 
 import drawsvg as draw
 
-from .dimensions import ANNOTATION_OFFSET, DIMENSIONS_OFFSET, FONT_SIZE_BASE
+from .dimensions import ANNOTATION_OFFSET, DIMENSIONS_TEXT_OFFSET, FONT_SIZE_BASE
 from .layout_base import SizedGroup
 from .style import ACTIVE_STROKE_COLOR, DASH, DIMENSIONS_FONT_COLOR, DIMENSIONS_LINE_COLOR, FONT_FAMILY_TECH
 
@@ -25,20 +25,20 @@ def draw_position(group: SizedGroup, x0: float, x1: float, y0: float, y1: float)
 def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
     return [
         draw.Text(
-            str(x1 - x0),
+            str(math.fabs(x1 - x0)),
             FONT_SIZE_BASE,
-            x1 + math.copysign(DIMENSIONS_OFFSET, x0 - x1),
+            x1 + math.copysign(DIMENSIONS_TEXT_OFFSET, x0 - x1),
             y1 + ANNOTATION_OFFSET,
             fill=DIMENSIONS_FONT_COLOR,
-            text_anchor='middle',
+            text_anchor='end' if x0 < x1 else 'start',
             dominant_baseline='auto',
             font_family=FONT_FAMILY_TECH,
         ),
         draw.Text(
-            str(y1 - y0),
+            str(math.fabs(y1 - y0)),
             FONT_SIZE_BASE,
             x1 + ANNOTATION_OFFSET,
-            y1 + math.copysign(DIMENSIONS_OFFSET, y0 - y1),
+            y1 + math.copysign(DIMENSIONS_TEXT_OFFSET, y0 - y1),
             fill=DIMENSIONS_FONT_COLOR,
             text_anchor='start',
             dominant_baseline='middle',

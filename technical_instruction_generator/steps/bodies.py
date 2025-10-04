@@ -9,6 +9,7 @@ from .drilling import DrillHole
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
 from ..style import FONT_FAMILY_TECH, DASH
+from ..utils import draw_position
 
 
 class Body:
@@ -126,8 +127,10 @@ class Face(Body):
 
 
 class ModifyFaceStep(ModifyBodyStep):
-    def __init__(self, body: Face, step: Step) -> None:
+    def __init__(self, body: Face, step: Step, ref_x_opposite: bool = False, ref_y_opposite: bool = False,) -> None:
         super().__init__(body, step)
+        self.ref_x_opposite = ref_x_opposite
+        self.ref_y_opposite = ref_y_opposite
 
     @property
     def identifier(self) -> str | None:
@@ -154,11 +157,26 @@ class ModifyFaceStep(ModifyBodyStep):
     def instruction(self) -> str:
         return f"{self.step.instruction[:-1]} auf {self.face}."
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
+    def draw(
+        self,
+        group: SizedGroup,
+        x=0,
+        y=0,
+        active: bool = True,
+        dimensions: bool = True,
+        close_up: bool = False,
+        faded: bool = False,
+        dim_ref_pt: tuple[float, float] | None = None
+    ) -> None:
         if self._active_bodies is not None:
             faded |= set(self._active_bodies).issubset({self.body})
         self.face.draw(group, x, y)
-        self.step.draw(group, x, y, active, dimensions, close_up, faded)
+
+        dim_ref_pt = (
+            self.face.width if self.ref_x_opposite else 0.0,
+            self.face.height if self.ref_y_opposite else 0.0,
+        )
+        self.step.draw(group, x, y, active, dimensions, close_up, faded, dim_ref_pt)
 
 
 class Bar(Body):
@@ -204,11 +222,21 @@ class Bar(Body):
 
 
 class ModifyBarStep(ModifyBodyStep):
-    def __init__(self, bar: Bar, face_identifier: str, step: Step, through: bool = False) -> None:
+    def __init__(
+        self,
+        bar: Bar,
+        face_identifier: str,
+        step: Step,
+        through: bool = False,
+        ref_x_opposite: bool = False,
+        ref_y_opposite: bool = False,
+    ) -> None:
         super().__init__(bar, step)
         self.face_identifier = face_identifier
         self.face = self.bar[face_identifier]
         self.through = through
+        self.ref_x_opposite = ref_x_opposite
+        self.ref_y_opposite = ref_y_opposite
 
         self.padding = 10
         self.layout_width = math.ceil(self.bar.length)
@@ -245,7 +273,17 @@ class ModifyBarStep(ModifyBodyStep):
         y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
         return ViewBox(x0, y0 - self.ys[self.face_identifier], x1 - x0, y1 - y0)
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
+    def draw(
+        self,
+        group: SizedGroup,
+        x=0,
+        y=0,
+        active: bool = True,
+        dimensions: bool = True,
+        close_up: bool = False,
+        faded: bool = False,
+        dim_ref_pt: tuple[float, float] | None = None,
+    ) -> None:
         for key, face in self.bar.faces.items():
             y_face = y + self.ys[key]
             face.draw(group, x, y_face)
@@ -264,7 +302,11 @@ class ModifyBarStep(ModifyBodyStep):
                 ))
 
             if key == self.face_identifier:
-                self.step.draw(group, x, y_face, active, dimensions, faded=faded)
+                dim_ref_pt = (
+                    self.face.width if self.ref_x_opposite else 0.0,
+                    self.face.height if self.ref_y_opposite else 0.0,
+                )
+                self.step.draw(group, x, y_face, active, dimensions, faded=faded, dim_ref_pt=dim_ref_pt)
                 self._transfer_step_to_other_faces(group, x, y, active, dimensions, faded=faded)
 
     def _transfer_step_to_other_faces(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, faded: bool = False) -> None:
