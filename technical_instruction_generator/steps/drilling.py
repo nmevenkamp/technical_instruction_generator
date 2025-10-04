@@ -58,23 +58,23 @@ class DrillHole(Step):
         res += "."
         return res
 
-    def draw(self, group: SizedGroup, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
         color = get_color(active)
-        group.append(draw.Circle(self.x, self.y, self.radius, stroke=color, fill='none'))
+        group.append(draw.Circle(x + self.x, y + self.y, self.radius, stroke=color, fill='none'))
 
         if dimensions:
-            draw_position(group, self.x, self.y)
+            draw_position(group, x, x + self.x, y, y + self.y)
 
             group.register_text(draw.Text(
                 self.annotation,
                 FONT_SIZE_BASE,
-                self.x + self.radius + ANNOTATION_OFFSET,
-                self.y,
+                x + self.x + self.radius + ANNOTATION_OFFSET,
+                y + self.y,
                 text_anchor='start',
                 dominant_baseline='middle',
                 font_family=FONT_FAMILY_TECH,
             ))
-            group.register_text(get_position_text(self.x, self.y))
+            group.register_text(get_position_text(x, x + self.x, y, y + self.y))
 
 
 

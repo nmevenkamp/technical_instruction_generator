@@ -1,8 +1,9 @@
+import math
 from typing import Any
 
 import drawsvg as draw
 
-from .dimensions import ANNOTATION_OFFSET, DASH, FONT_SIZE_BASE
+from .dimensions import ANNOTATION_OFFSET, DASH, DIMENSIONS_OFFSET, FONT_SIZE_BASE
 from .layout_base import SizedGroup
 from .style import FONT_FAMILY_TECH
 
@@ -16,28 +17,28 @@ class Text(draw.Text):
         super().__init__(text, font_size, x, -y, transform='scale(1, -1)', font_family=font_family, **kwargs)
 
 
-def draw_position(group: SizedGroup, x: float, y: float) -> None:
-    group.draw(draw.Line(0, y, x, y, stroke='black', stroke_width=0.5, stroke_dasharray=DASH))  # x
-    group.draw(draw.Line(x, 0, x, y, stroke='black', stroke_width=0.5, stroke_dasharray=DASH))  # y
+def draw_position(group: SizedGroup, x0: float, x1: float, y0: float, y1: float) -> None:
+    group.draw(draw.Line(x0, y1, x1, y1, stroke='black', stroke_width=0.5, stroke_dasharray=DASH))  # x
+    group.draw(draw.Line(x1, y0, x1, y1, stroke='black', stroke_width=0.5, stroke_dasharray=DASH))  # y
 
 
-def get_position_text(x: float, y: float) -> list[draw.Text]:
+def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
     return [
         draw.Text(
-            str(x),
+            str(x1 - x0),
             FONT_SIZE_BASE,
-            x / 2,
-            y + ANNOTATION_OFFSET,
+            x1 + math.copysign(DIMENSIONS_OFFSET, x0 - x1),
+            y1 + ANNOTATION_OFFSET,
             color='black',
             text_anchor='middle',
             dominant_baseline='auto',
             font_family=FONT_FAMILY_TECH,
         ),
         draw.Text(
-            str(y),
+            str(y1 - y0),
             FONT_SIZE_BASE,
-            x + ANNOTATION_OFFSET,
-            y / 2,
+            x1 + ANNOTATION_OFFSET,
+            y1 + math.copysign(DIMENSIONS_OFFSET, y0 - y1),
             color='black',
             text_anchor='start',
             dominant_baseline='middle',

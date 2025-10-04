@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import drawsvg as draw
 
-from ..layout_base import ViewBox
+from ..layout_base import SizedGroup, ViewBox
 
 
 class Step(ABC):
@@ -33,5 +33,5 @@ class Step(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def draw(self, drawing: draw.Drawing | draw.Group, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, drawing: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
         raise NotImplementedError

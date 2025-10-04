@@ -1,10 +1,10 @@
 import math
 
 import drawsvg as draw
-from drawsvg import Drawing, Group
 
 from .base import Step
-from ..layout_base import ViewBox
+from ..layout import LinearLayout
+from ..layout_base import LayoutDirection, SizedGroup, ViewBox
 
 
 class Face:
@@ -24,8 +24,8 @@ class Face:
     def view_box(self) -> ViewBox:
         return ViewBox(0, 0, math.ceil(self.width), math.ceil(self.height))
 
-    def draw(self, drawing: Drawing) -> None:
-        drawing.append(draw.Rectangle(0, 0, self.width, self.height, stroke='black', fill='none'))
+    def draw(self, group: SizedGroup, x=0, y=0) -> None:
+        group.append(draw.Rectangle(x, y, self.width, self.height, stroke='black', fill='none'))
 
 
 class ModifyFaceStep(Step):
@@ -54,6 +54,83 @@ class ModifyFaceStep(Step):
     def instruction(self) -> str:
         return f"{self.step.instruction[:-1]} auf {self.face}."
 
-    def draw(self, drawing: Drawing | Group, active: bool = True, dimensions: bool = True) -> None:
-        self.face.draw(drawing)
-        self.step.draw(drawing, active, dimensions)
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+        self.face.draw(group, x, y)
+        self.step.draw(group, x, y, active, dimensions)
+
+
+class Bar:
+    def __init__(self, identifier: str, width: float, height: float, length: float) -> None:
+        self.identifier = identifier
+        self.length = length
+        self.width = width
+        self.height = height
+        self.faces = {
+            'C': Face('C', length, height),
+            'D': Face('D', length, width),
+            'A': Face('A', length, height),
+            'B': Face('B', length, width),
+        }
+
+    def __str__(self) -> str:
+        return f"Latte {self.identifier}"
+
+    def __getitem__(self, identifier: str) -> Face:
+        return self.faces[identifier]
+
+    def get_opposite_face(self, identifier: str) -> Face:
+        if identifier == 'A':
+            return self.faces['C']
+        elif identifier == 'B':
+            return self.faces['D']
+        elif identifier == 'C':
+            return self.faces['A']
+        elif identifier == 'D':
+            return self.faces['B']
+        raise KeyError(identifier)
+
+
+class ModifyBarStep(Step):
+    def __init__(self, bar: Bar, face_identifier: str, step: Step, through: bool = False) -> None:
+        super().__init__()
+        self.bar = bar
+        self.face_identifier = face_identifier
+        self.face = self.bar[face_identifier]
+        self.step = step
+        self.through = through
+
+        self.padding = 10
+        self.layout_width = math.ceil(self.bar.length)
+        self.layout_height = math.ceil(2 * self.bar.height + 2 * self.bar.width + 3 * self.padding)
+        self.y0_offset = 0
+        for key, face in self.bar.faces.items():
+            if face.identifier == self.face_identifier:
+                break
+            self.y0_offset -= face.height + self.padding
+
+    @property
+    def identifier(self) -> str | None:
+        return self.step.identifier
+
+    @property
+    def instruction(self) -> str:
+        return f"{self.step.instruction[:-1]} auf {self.face} in {self.bar}."
+
+    @property
+    def view_box(self) -> ViewBox:
+        return ViewBox(0, 0, self.layout_width, self.layout_height)
+
+    @property
+    def view_box_closeup(self) -> ViewBox:
+        x0 = self.step.view_box_closeup.x
+        y0 = min(self.step.view_box_closeup.y, self.face.view_box.y)
+        x1 = x0 + self.step.view_box_closeup.width
+        y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
+        return ViewBox(x0, y0 + self.y0_offset, x1 - x0, y1 - y0)
+
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+        for key, face in self.bar.faces.items():
+            face.draw(group, x, y)
+            if key == self.face_identifier:
+                self.step.draw(group, x, y, active, dimensions)
+            y += face.height + self.padding
