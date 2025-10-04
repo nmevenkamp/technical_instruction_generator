@@ -1,15 +1,15 @@
 import os
 from pathlib import Path
-from tkinter.constants import HORIZONTAL
 
 import drawsvg as draw
-from drawsvg import Drawing, Group
+from drawsvg import Drawing
 from lxml import etree
 from svglib.svglib import SvgRenderer
 from svglib.svglib import Drawing as SvglibDrawing
 from reportlab.graphics import renderPDF
 from reportlab.graphics.renderbase import renderScaledDrawing
 from reportlab.pdfgen.canvas import Canvas
+from tqdm import tqdm
 
 from .layout_base import Alignment, ExpandBehaviour, LayoutDirection, ScaleBehaviour, SizedGroup
 from .layout import  LinearLayout, Page
@@ -50,7 +50,7 @@ class Instructions:
         # compile SVGs
         page_idx = 0
         page = Page(page_idx, self.title)
-        for step_idx in range(len(self.steps)):
+        for step_idx in tqdm(range(len(self.steps)), desc="generating SVGs"):
             if not self._add_step(page, step_idx):
                 pages.append(page)
                 page_idx += 1
@@ -137,7 +137,7 @@ class Instructions:
         pdf_canvas.setTitle("")
         pdf_canvas.setPageSize((d.width, d.height))
 
-        for page in pages:
+        for page in tqdm(pages, 'rendering PDF pages'):
             renderPDF.draw(self._to_pdf_drawing(page.drawing), pdf_canvas, 0, 0)
             pdf_canvas.showPage()
 

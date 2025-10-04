@@ -8,6 +8,12 @@ from .layout_base import SizedGroup
 from .style import ACTIVE_STROKE_COLOR, DASH, DIMENSIONS_FONT_COLOR, DIMENSIONS_LINE_COLOR, FONT_FAMILY_TECH
 
 
+def disp(nr: int | float) -> str:
+    if int(nr) == nr:
+        return f"{nr:.0f}"
+    return str(nr)
+
+
 def get_color(active: bool) -> str:
     return ACTIVE_STROKE_COLOR if active else "black"
 
@@ -25,7 +31,7 @@ def draw_position(group: SizedGroup, x0: float, x1: float, y0: float, y1: float)
 def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
     return [
         draw.Text(
-            str(math.fabs(x1 - x0)),
+            disp(math.fabs(x1 - x0)),
             FONT_SIZE_BASE,
             x1 + math.copysign(DIMENSIONS_TEXT_OFFSET, x0 - x1),
             y1 + ANNOTATION_OFFSET,
@@ -35,7 +41,7 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
             font_family=FONT_FAMILY_TECH,
         ),
         draw.Text(
-            str(math.fabs(y1 - y0)),
+            disp(math.fabs(y1 - y0)),
             FONT_SIZE_BASE,
             x1 + ANNOTATION_OFFSET,
             y1 + math.copysign(DIMENSIONS_TEXT_OFFSET, y0 - y1),

@@ -4,8 +4,12 @@ from ..layout_base import SizedGroup, ViewBox
 
 
 class Step(ABC):
-    def __init__(self, name: str | None = None) -> None:
-        self._identifier = name
+    def __init__(self, identifier: str | None = None) -> None:
+        self._identifier = identifier
+
+    @abstractmethod
+    def __eq__(self, other: object) -> bool:
+        raise NotImplementedError
 
     @property
     def identifier(self) -> str | None:

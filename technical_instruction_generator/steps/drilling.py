@@ -7,12 +7,12 @@ from .base import Step
 from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
 from ..style import DIMENSIONS_FONT_COLOR, FONT_FAMILY_TECH
-from ..utils import draw_position, get_position_text, get_color, Text
+from ..utils import draw_position, get_position_text, get_color, disp
 
 
 class DrillHole(Step):
-    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, through: bool = True, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, through: bool = True, identifier: str | None = None) -> None:
+        super().__init__(identifier)
 
         if not through and depth == 0:
             raise ValueError("Depth greater than 0 must be specified for non-through holes")
@@ -22,6 +22,11 @@ class DrillHole(Step):
         self.diameter = diameter
         self.depth = depth
         self.through = through
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return other.x == self.x and other.y == self.y and other.diameter == self.diameter and other.depth == self.depth and other.through == self.through
 
     def clone(self, x=None, y=None) -> 'DrillHole':
         return DrillHole(x or self.x, y or self.y, self.diameter, self.depth, self.through)
@@ -53,18 +58,18 @@ class DrillHole(Step):
 
     @property
     def annotation(self) -> str:
-        res = f"D{self.diameter}"
+        res = f"D{disp(self.diameter)}"
         if self.depth > 0:
-            res += f"x{self.depth}"
+            res += f"x{disp(self.depth)}"
             if not self.through:
                 res += "U"
         return res
 
     @property
     def instruction(self) -> str:
-        res = f"Bohre Loch bei ({self.x}, {self.y}) mit Durchmesser {self.diameter}"
+        res = f"Bohre Loch bei ({disp(self.x)}, {disp(self.y)}) mit Durchmesser {disp(self.diameter)}"
         if self.depth > 0:
-            res += f" und Tiefe {self.depth}"
+            res += f" und Tiefe {disp(self.depth)}"
         res += "."
         return res
 

@@ -18,8 +18,8 @@ class Body:
 
 
 class ModifyBodyStep(Step, ABC):
-    def __init__(self, body: Body, step: Step):
-        super().__init__()
+    def __init__(self, identifier: str, body: Body, step: Step):
+        super().__init__(identifier)
         self.body = body
         self.step = step
         self._active_bodies = None
@@ -33,7 +33,7 @@ class ModifyBodyStep(Step, ABC):
 
 class ModifyMultiBodyStep(Step):
     def __init__(self, bodies: list[Body], step: ModifyBodyStep):
-        super().__init__()
+        super().__init__(identifier=step.identifier)
         self.bodies = bodies
         self.step = step
         self._active_bodies = None
@@ -47,13 +47,21 @@ class ModifyMultiBodyStep(Step):
     def get_common_bodies(self, other: 'ModifyMultiBodyStep') -> list[Body]:
         return [body for body in other.bodies if body in self.bodies]
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ModifyMultiBodyStep):
+            return False
+        return len(self.bodies) == len(other.bodies) and all(body == body_ for body, body_ in zip(other.bodies, self.bodies)) and self.step == other.step
+
     @property
     def identifier(self) -> str | None:
         return self.step.identifier
 
     @property
     def instruction(self) -> str:
-        return f"{self.step.instruction} Wiederhole für {self.bodies_str}."
+        res = self.step.instruction
+        if len(self.bodies) > 1:
+            res += f" Wiederhole für {self.bodies_str}."
+        return res
 
     @property
     def bodies_str(self) -> str:
@@ -99,10 +107,20 @@ class ModifyMultiBodyStep(Step):
     def view_box_closeup(self) -> ViewBox:
         return self.step.view_box_closeup
 
-    def draw(self, drawing: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
-        if self._active_bodies is not None:
-            faded |= set(self._active_bodies).issubset(self.bodies)
-        self.step.draw(drawing, x, y, active, dimensions, close_up, faded)
+    def draw(
+            self,
+            group: SizedGroup,
+            x=0,
+            y=0,
+            active: bool = True,
+            dimensions: bool = True,
+            close_up: bool = False,
+            faded: bool = False,
+            dim_ref_pt: tuple[float, float] | None = None
+    ) -> None:
+        # if self._active_bodies is not None:
+        #     faded |= set(self._active_bodies).issubset(self.bodies)
+        self.step.draw(group, x, y, active, dimensions, close_up, faded, dim_ref_pt)
 
 
 class Face(Body):
@@ -127,8 +145,8 @@ class Face(Body):
 
 
 class ModifyFaceStep(ModifyBodyStep):
-    def __init__(self, body: Face, step: Step, ref_x_opposite: bool = False, ref_y_opposite: bool = False,) -> None:
-        super().__init__(body, step)
+    def __init__(self, body: Face, step: Step, ref_x_opposite: bool = False, ref_y_opposite: bool = False) -> None:
+        super().__init__(step.identifier, body, step)
         self.ref_x_opposite = ref_x_opposite
         self.ref_y_opposite = ref_y_opposite
 
@@ -198,6 +216,11 @@ class Bar(Body):
     def __getitem__(self, identifier: str) -> Face:
         return self.faces[identifier]
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Bar):
+            return False
+        return other.width == self.width and other.height == self.height and other.length == self.length
+
     def get_opposite_face(self, identifier: str) -> Face:
         if identifier == 'A':
             return self.faces['C']
@@ -227,14 +250,12 @@ class ModifyBarStep(ModifyBodyStep):
         bar: Bar,
         face_identifier: str,
         step: Step,
-        through: bool = False,
         ref_x_opposite: bool = False,
         ref_y_opposite: bool = False,
     ) -> None:
-        super().__init__(bar, step)
+        super().__init__(step.identifier, bar, step)
         self.face_identifier = face_identifier
         self.face = self.bar[face_identifier]
-        self.through = through
         self.ref_x_opposite = ref_x_opposite
         self.ref_y_opposite = ref_y_opposite
 
@@ -246,6 +267,11 @@ class ModifyBarStep(ModifyBodyStep):
         for key, face in self.bar.faces.items():
             self.ys[key]  = y
             y += face.height + self.padding
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ModifyBarStep):
+            return False
+        return self.bar == other.bar and self.face_identifier == other.face_identifier and self.step == other.step
 
     @property
     def identifier(self) -> str | None:
