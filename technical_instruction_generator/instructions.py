@@ -13,6 +13,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from .layout_base import Alignment, ExpandBehaviour, LayoutDirection, ScaleBehaviour, SizedGroup
 from .layout import  LinearLayout, Page
+from .steps.bodies import ModifyBodyStep
 from .steps.views import CloseUpView, FullView
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
@@ -102,7 +103,14 @@ class Instructions:
         box.append(draw.Use(step_layout, x, y))
 
         # add step views
-        steps = self.steps[:(step_idx + 1)]
+        if isinstance(step, ModifyBodyStep):
+            steps = [
+                step_ for step_ in self.steps[:(step_idx + 1)]
+                if isinstance(step_, ModifyBodyStep)
+                and step_.body == step.body
+            ]
+        else:
+            steps = [step]
         step_layout.add_view(CloseUpView(steps, padding=(50, 0)), size_behaviour=ScaleBehaviour())
         step_layout.add_view(FullView(steps), size_behaviour=ScaleBehaviour())
 

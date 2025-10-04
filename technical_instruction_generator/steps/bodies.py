@@ -1,18 +1,29 @@
 import math
+from abc import ABC
 
 import drawsvg as draw
 
 from .base import Step
 from .drilling import DrillHole
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
-from ..layout import LinearLayout
-from ..layout_base import LayoutDirection, SizedGroup, ViewBox
+from ..layout_base import SizedGroup, ViewBox
 from ..style import FONT_FAMILY_TECH, STROKE_DASH_ARRAY
 
 
-class Face:
-    def __init__(self, identifier: str, width: float, height: float) -> None:
+class Body:
+    def __init__(self, identifier: str):
         self.identifier = identifier
+
+
+class ModifyBodyStep(Step, ABC):
+    def __init__(self, body: Body):
+        super().__init__()
+        self.body = body
+
+
+class Face(Body):
+    def __init__(self, identifier: str, width: float, height: float) -> None:
+        super().__init__(identifier)
         self.width = width
         self.height = height
 
@@ -31,15 +42,19 @@ class Face:
         group.append(draw.Rectangle(x, y, self.width, self.height, stroke='black', fill='none'))
 
 
-class ModifyFaceStep(Step):
-    def __init__(self, face: Face, step: Step) -> None:
-        super().__init__()
-        self.face = face
+class ModifyFaceStep(ModifyBodyStep):
+    def __init__(self, body: Face, step: Step) -> None:
+        super().__init__(body)
         self.step = step
 
     @property
     def identifier(self) -> str | None:
         return self.step.identifier
+
+    @property
+    def face(self) -> Face:
+        assert isinstance(self.body, Face)
+        return self.body
 
     @property
     def view_box(self) -> ViewBox:
@@ -57,14 +72,14 @@ class ModifyFaceStep(Step):
     def instruction(self) -> str:
         return f"{self.step.instruction[:-1]} auf {self.face}."
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False) -> None:
         self.face.draw(group, x, y)
         self.step.draw(group, x, y, active, dimensions)
 
 
-class Bar:
+class Bar(Body):
     def __init__(self, identifier: str, width: float, height: float, length: float) -> None:
-        self.identifier = identifier
+        super().__init__(identifier)
         self.length = length
         self.width = width
         self.height = height
@@ -104,10 +119,9 @@ class Bar:
         raise KeyError(identifier)
 
 
-class ModifyBarStep(Step):
+class ModifyBarStep(ModifyBodyStep):
     def __init__(self, bar: Bar, face_identifier: str, step: Step, through: bool = False) -> None:
-        super().__init__()
-        self.bar = bar
+        super().__init__(bar)
         self.face_identifier = face_identifier
         self.face = self.bar[face_identifier]
         self.step = step
@@ -125,6 +139,11 @@ class ModifyBarStep(Step):
     @property
     def identifier(self) -> str | None:
         return self.step.identifier
+
+    @property
+    def bar(self) -> Bar:
+        assert isinstance(self.body, Bar)
+        return self.body
 
     @property
     def instruction(self) -> str:

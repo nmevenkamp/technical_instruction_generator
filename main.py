@@ -4,21 +4,19 @@ from technical_instruction_generator.steps.bodies import Face, ModifyFaceStep, B
 
 
 def main() -> None:
-    face = Face("A", 1000, 100)
-
-    bar = Bar("1.1", 42, 48, 1000)
-
+    bar1 = Bar("1.1", 42, 48, 1000)
+    bar2 = Bar("2.1", 42, 70, 768)
     manual = Instructions(
         title="Tims Abenteuerbett",
         steps=[
             # ModifyFaceStep(face, DrillHole(100, 10, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
-            ModifyBarStep(bar, 'D', DrillHole(200, 21, 20, 12, False)),
-            ModifyBarStep(bar, 'D', DrillHole(200, 21, 7, )),
-            ModifyBarStep(bar, 'D', DrillHole(100, 21, 20, 12, False)),
-            ModifyBarStep(bar, 'D', DrillHole(20, 21, 20, 12, False)),
-            ModifyBarStep(bar, 'D', DrillHole(20, 21, 4, )),
+            ModifyBarStep(bar1, 'D', DrillHole(200, 21, 20, 12, False)),
+            ModifyBarStep(bar1, 'D', DrillHole(200, 21, 7, )),
+            ModifyBarStep(bar1, 'D', DrillHole(100, 21, 20, 12, False)),
+            ModifyBarStep(bar2, 'D', DrillHole(20, 21, 20, 12, False)),
+            ModifyBarStep(bar2, 'D', DrillHole(20, 21, 4, )),
         ]
     )
     manual.save_svgs('output/instructions.svg')
