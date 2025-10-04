@@ -32,7 +32,7 @@ class FullView(View):
 
     def get_group(self) -> SizedGroup:
         group = SizedGroup(width=self.view_box.width, height=self.view_box.height, flip_y=True)
-        for step in self.steps[:-2]:
+        for step in self.steps[:-1]:
             step.draw(group, active=False, dimensions=False)
         self.steps[-1].draw(group, active=True, dimensions=False)
         return group

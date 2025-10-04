@@ -18,6 +18,7 @@ def main() -> None:
             ModifyBarStep(bar, 'D', DrillHole(200, 21, 7, )),
             ModifyBarStep(bar, 'D', DrillHole(100, 21, 20, 12, False)),
             ModifyBarStep(bar, 'D', DrillHole(20, 21, 20, 12, False)),
+            ModifyBarStep(bar, 'D', DrillHole(20, 21, 4, )),
         ]
     )
     manual.save_svgs('output/instructions.svg')
