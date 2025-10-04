@@ -13,7 +13,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from .layout_base import Alignment, ExpandBehaviour, LayoutDirection, ScaleBehaviour, SizedGroup
 from .layout import  LinearLayout, Page
-from .steps.bodies import ModifyBodyStep
+from .steps.bodies import ModifyBodyStep, ModifyMultiBodyStep
 from .steps.views import CloseUpView, FullView
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
@@ -64,6 +64,7 @@ class Instructions:
 
     def _add_step(self, page: Page, step_idx: int) -> bool:
         step = self.steps[step_idx]
+        steps = self.steps[:(step_idx + 1)]
         step_id = step.identifier or f"{step_idx + 1}"
 
         box = SizedGroup(width=None, height=400)
@@ -105,9 +106,15 @@ class Instructions:
         # add step views
         if isinstance(step, ModifyBodyStep):
             steps = [
-                step_ for step_ in self.steps[:(step_idx + 1)]
-                if isinstance(step_, ModifyBodyStep)
-                and step_.body == step.body
+                step_ for step_ in steps
+                if (isinstance(step_, ModifyBodyStep) and step_.body == step.body)
+                or (isinstance(step_, ModifyMultiBodyStep) and step in step_.bodies)
+            ]
+        elif isinstance(step, ModifyMultiBodyStep):
+            steps = [
+                step_ for step_ in steps
+                if (isinstance(step_, ModifyBodyStep) and step_.body in step.bodies)
+                or (isinstance(step_, ModifyMultiBodyStep) and step.get_common_bodies(step_))
             ]
         else:
             steps = [step]

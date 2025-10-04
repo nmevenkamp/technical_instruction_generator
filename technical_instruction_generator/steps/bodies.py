@@ -16,9 +16,20 @@ class Body:
 
 
 class ModifyBodyStep(Step, ABC):
-    def __init__(self, body: Body):
+    def __init__(self, body: Body, step: Step):
         super().__init__()
         self.body = body
+        self.step = step
+
+
+class ModifyMultiBodyStep(Step, ABC):
+    def __init__(self, bodies: list[Body], step: ModifyBodyStep):
+        super().__init__()
+        self.bodies = bodies
+        self.step = step
+
+    def get_common_bodies(self, other: 'ModifyMultiBodyStep') -> list[Body]:
+        return [body for body in other.bodies if body in self.bodies]
 
 
 class Face(Body):
@@ -44,8 +55,7 @@ class Face(Body):
 
 class ModifyFaceStep(ModifyBodyStep):
     def __init__(self, body: Face, step: Step) -> None:
-        super().__init__(body)
-        self.step = step
+        super().__init__(body, step)
 
     @property
     def identifier(self) -> str | None:
@@ -121,10 +131,9 @@ class Bar(Body):
 
 class ModifyBarStep(ModifyBodyStep):
     def __init__(self, bar: Bar, face_identifier: str, step: Step, through: bool = False) -> None:
-        super().__init__(bar)
+        super().__init__(bar, step)
         self.face_identifier = face_identifier
         self.face = self.bar[face_identifier]
-        self.step = step
         self.through = through
 
         self.padding = 10
