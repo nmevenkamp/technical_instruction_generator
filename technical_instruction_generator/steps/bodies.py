@@ -3,10 +3,11 @@ import math
 import drawsvg as draw
 
 from .base import Step
+from .drilling import DrillHole
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout import LinearLayout
 from ..layout_base import LayoutDirection, SizedGroup, ViewBox
-from ..style import FONT_FAMILY_TECH
+from ..style import FONT_FAMILY_TECH, STROKE_DASH_ARRAY
 
 
 class Face:
@@ -91,6 +92,17 @@ class Bar:
             return self.faces['B']
         raise KeyError(identifier)
 
+    def get_adjacent_faces(self, identifier: str) -> list[Face]:
+        if identifier == 'A':
+            return [self.faces['B'], self.faces['D']]
+        elif identifier == 'B':
+            return [self.faces['C'], self.faces['A']]
+        elif identifier == 'C':
+            return [self.faces['D'], self.faces['B']]
+        elif identifier == 'D':
+            return [self.faces['A'], self.faces['C']]
+        raise KeyError(identifier)
+
 
 class ModifyBarStep(Step):
     def __init__(self, bar: Bar, face_identifier: str, step: Step, through: bool = False) -> None:
@@ -104,11 +116,11 @@ class ModifyBarStep(Step):
         self.padding = 10
         self.layout_width = math.ceil(self.bar.length)
         self.layout_height = math.ceil(2 * self.bar.height + 2 * self.bar.width + 3 * self.padding)
-        self.y0_offset = 0
+        self.ys = {}
+        y = 0
         for key, face in self.bar.faces.items():
-            if face.identifier == self.face_identifier:
-                break
-            self.y0_offset -= face.height + self.padding
+            self.ys[key]  = y
+            y += face.height + self.padding
 
     @property
     def identifier(self) -> str | None:
@@ -128,11 +140,12 @@ class ModifyBarStep(Step):
         y0 = min(self.step.view_box_closeup.y, self.face.view_box.y)
         x1 = x0 + self.step.view_box_closeup.width
         y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
-        return ViewBox(x0, y0 + self.y0_offset, x1 - x0, y1 - y0)
+        return ViewBox(x0, y0 - self.ys[self.face_identifier], x1 - x0, y1 - y0)
 
     def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up=False) -> None:
         for key, face in self.bar.faces.items():
-            face.draw(group, x, y)
+            y_face = y + self.ys[key]
+            face.draw(group, x, y_face)
 
             # annotate face
             if not close_up or face.identifier == self.face_identifier:
@@ -140,12 +153,56 @@ class ModifyBarStep(Step):
                     face.identifier,
                     FONT_SIZE_BASE,
                     x - FACE_ANNOTATION_OFFSET,
-                    y + face.height / 2,
+                    y_face + face.height / 2,
                     text_anchor='end',
                     dominant_baseline='middle',
                     font_family=FONT_FAMILY_TECH,
                 ))
 
             if key == self.face_identifier:
-                self.step.draw(group, x, y, active, dimensions)
-            y += face.height + self.padding
+                self.step.draw(group, x, y_face, active, dimensions)
+                self._transfer_step_to_other_faces(group, x, y, active, dimensions)
+
+    def _transfer_step_to_other_faces(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+        if isinstance(self.step, DrillHole):
+            if self.step.through:
+                # transfer step to opposite face
+                face = self.bar.get_opposite_face(self.face_identifier)
+                self.step.clone(y=face.height - self.step.y).draw(group, x, y + self.ys[face.identifier], False, False)
+
+            # transfer step to adjacent faces
+            for face, face_sign in zip(self.bar.get_adjacent_faces(self.face_identifier), [1, -1]):
+                height = face.height if self.step.through else self.step.depth
+                y_face = y + self.ys[face.identifier]
+                if not self.step.through:
+                    y0 = y_face if face_sign >= 0 else y_face + face.height - height
+                    y1 = y0 + height
+                    group.append(draw.Rectangle(
+                        x + self.step.x - self.step.radius,
+                        y0,
+                        self.step.diameter,
+                        y1 - y0,
+                        stroke='none',
+                        fill='gray',
+                        fill_opacity=0.25,
+                    ))
+                    y0 = y_face if face_sign >= 0 else y_face + face.height
+                    y1 = y0 + face_sign * height
+                    group.append(draw.Line(
+                        x + self.step.x - self.step.radius,
+                        y1,
+                        x + self.step.x + self.step.radius,
+                        y1,
+                        stroke='gray',
+                        stroke_dasharray=STROKE_DASH_ARRAY,
+                    ))
+                for sign in [-1, 1]:
+                    group.append(draw.Line(
+                        x + self.step.x + sign * self.step.radius,
+                        y0,
+                        x + self.step.x + sign * self.step.radius,
+                        y1,
+                        stroke='gray',
+                        stroke_dasharray=STROKE_DASH_ARRAY,
+                        fill='none',
+                    ))

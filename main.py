@@ -14,7 +14,7 @@ def main() -> None:
             # ModifyFaceStep(face, DrillHole(100, 10, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
             # ModifyFaceStep(face, DrillHole(10, 90, 4)),
-            ModifyBarStep(bar, 'B', DrillHole(20, 21, 20)),
+            ModifyBarStep(bar, 'D', DrillHole(20, 21, 20, 12, False)),
         ]
     )
     manual.save_svgs('output/instructions.svg')

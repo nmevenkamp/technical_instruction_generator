@@ -11,12 +11,20 @@ from ..utils import draw_position, get_position_text, get_color, Text
 
 
 class DrillHole(Step):
-    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, **kwargs) -> None:
+    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, through: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
+
+        if not through and depth == 0:
+            raise ValueError("Depth greater than 0 must be specified for non-through holes")
+
         self.x = x
         self.y = y
         self.diameter = diameter
         self.depth = depth
+        self.through = through
+
+    def clone(self, x=None, y=None) -> 'DrillHole':
+        return DrillHole(x or self.x, y or self.y, self.diameter, self.depth, self.through)
 
     @property
     def center(self) -> tuple[float, float]:
@@ -48,19 +56,23 @@ class DrillHole(Step):
         res = f"D{self.diameter}"
         if self.depth > 0:
             res += f"x{self.depth}"
+            if not self.through:
+                res += "U"
         return res
 
     @property
     def instruction(self) -> str:
         res = f"Bohre ein Loch bei ({self.x}, {self.y}) mit Durchmesser {self.diameter}"
         if self.depth > 0:
-            res += f"und Tiefe {self.depth}"
+            res += f" und Tiefe {self.depth}"
         res += "."
         return res
 
     def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False) -> None:
         color = get_color(active)
-        group.append(draw.Circle(x + self.x, y + self.y, self.radius, stroke=color, fill='none'))
+
+        fill = 'none' if self.through else 'gray'
+        group.append(draw.Circle(x + self.x, y + self.y, self.radius, stroke=color, fill=fill, fill_opacity=0.5))
 
         if dimensions:
             draw_position(group, x, x + self.x, y, y + self.y)
