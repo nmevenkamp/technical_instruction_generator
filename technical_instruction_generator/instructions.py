@@ -17,7 +17,7 @@ from .steps.bodies import ModifyBodyStep, ModifyMultiBodyStep
 from .steps.views import CloseUpView, FullView
 from .style import FONT_FAMILY_TEXT, INSTRUCTION_BOX_STROKE_COLOR
 from .dimensions import (
-    FONT_SIZE_BASE,
+    CLOSE_UP_PADDING, FONT_SIZE_BASE,
     HEADER_TEXT_OFFSET_X,
     HEADER_SIZE,
     INSTRUCTION_BOX_PADDING,
@@ -122,7 +122,7 @@ class Instructions:
                 step_.set_active_bodies(step.bodies)
         else:
             steps = [step]
-        step_layout.add_view(CloseUpView(steps, padding=(50, 0)), size_behaviour=ScaleBehaviour())
+        step_layout.add_view(CloseUpView(steps, padding=(CLOSE_UP_PADDING, 0)), size_behaviour=ScaleBehaviour())
         step_layout.add_view(FullView(steps), size_behaviour=ScaleBehaviour())
 
         return True
