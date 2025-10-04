@@ -20,16 +20,52 @@ class ModifyBodyStep(Step, ABC):
         super().__init__()
         self.body = body
         self.step = step
+        self._active_bodies = None
+
+    def set_active_body(self, body: Body) -> None:
+        self._active_bodies = [body]
+
+    def set_active_bodies(self, active_bodies: list[Body]) -> None:
+        self._active_bodies = active_bodies
 
 
-class ModifyMultiBodyStep(Step, ABC):
+class ModifyMultiBodyStep(Step):
     def __init__(self, bodies: list[Body], step: ModifyBodyStep):
         super().__init__()
         self.bodies = bodies
         self.step = step
+        self._active_bodies = None
+
+    def set_active_body(self, body: Body) -> None:
+        self._active_bodies = [body]
+
+    def set_active_bodies(self, active_bodies: list[Body]) -> None:
+        self._active_bodies = active_bodies
 
     def get_common_bodies(self, other: 'ModifyMultiBodyStep') -> list[Body]:
         return [body for body in other.bodies if body in self.bodies]
+
+    @property
+    def identifier(self) -> str | None:
+        return self.step.identifier
+
+    @property
+    def instruction(self) -> str:
+        bodies_str = ",".join(body.identifier for body in self.bodies)
+        return f"{self.step.instruction} Wiederhole auf {bodies_str}."
+
+    @property
+    def view_box(self) -> ViewBox:
+        return self.step.view_box
+
+    @property
+    def view_box_closeup(self) -> ViewBox:
+        return self.step.view_box_closeup
+
+    def draw(self, drawing: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
+        if self._active_bodies is not None:
+            faded |= set(self._active_bodies).issubset(self.bodies)
+        self.step.draw(drawing, x, y, active, dimensions, close_up, faded)
 
 
 class Face(Body):
@@ -82,9 +118,11 @@ class ModifyFaceStep(ModifyBodyStep):
     def instruction(self) -> str:
         return f"{self.step.instruction[:-1]} auf {self.face}."
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
+        if self._active_bodies is not None:
+            faded |= set(self._active_bodies).issubset({self.body})
         self.face.draw(group, x, y)
-        self.step.draw(group, x, y, active, dimensions)
+        self.step.draw(group, x, y, active, dimensions, close_up, faded)
 
 
 class Bar(Body):
@@ -160,7 +198,8 @@ class ModifyBarStep(ModifyBodyStep):
 
     @property
     def view_box(self) -> ViewBox:
-        return ViewBox(-FACE_ANNOTATION_OFFSET, 0, self.layout_width + FACE_ANNOTATION_OFFSET, self.layout_height)
+        offset = -FACE_ANNOTATION_OFFSET - 50
+        return ViewBox(offset, 0, self.layout_width - offset, self.layout_height)
 
     @property
     def view_box_closeup(self) -> ViewBox:
@@ -170,7 +209,7 @@ class ModifyBarStep(ModifyBodyStep):
         y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
         return ViewBox(x0, y0 - self.ys[self.face_identifier], x1 - x0, y1 - y0)
 
-    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up=False) -> None:
+    def draw(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
         for key, face in self.bar.faces.items():
             y_face = y + self.ys[key]
             face.draw(group, x, y_face)
@@ -182,21 +221,24 @@ class ModifyBarStep(ModifyBodyStep):
                     FONT_SIZE_BASE,
                     x - FACE_ANNOTATION_OFFSET,
                     y_face + face.height / 2,
+                    fill='red' if face.identifier == self.face_identifier else 'black',
                     text_anchor='end',
                     dominant_baseline='middle',
                     font_family=FONT_FAMILY_TECH,
                 ))
 
             if key == self.face_identifier:
-                self.step.draw(group, x, y_face, active, dimensions)
-                self._transfer_step_to_other_faces(group, x, y, active, dimensions)
+                self.step.draw(group, x, y_face, active, dimensions, faded=faded)
+                self._transfer_step_to_other_faces(group, x, y, active, dimensions, faded=faded)
 
-    def _transfer_step_to_other_faces(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True) -> None:
+    def _transfer_step_to_other_faces(self, group: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, faded: bool = False) -> None:
+        fill_opacity = 0.4 if faded else 1
+        stroke_opacity = 0.4 if faded else 1
         if isinstance(self.step, DrillHole):
             if self.step.through:
                 # transfer step to opposite face
                 face = self.bar.get_opposite_face(self.face_identifier)
-                self.step.clone(y=face.height - self.step.y).draw(group, x, y + self.ys[face.identifier], False, False)
+                self.step.clone(y=face.height - self.step.y).draw(group, x, y + self.ys[face.identifier], False, False, faded=faded)
 
             # transfer step to adjacent faces
             for face, face_sign in zip(self.bar.get_adjacent_faces(self.face_identifier), [1, -1]):
@@ -212,7 +254,7 @@ class ModifyBarStep(ModifyBodyStep):
                         y1 - y0,
                         stroke='none',
                         fill='gray',
-                        fill_opacity=0.25,
+                        fill_opacity=0.25 * fill_opacity,
                     ))
                     y0 = y_face if face_sign >= 0 else y_face + face.height
                     y1 = y0 + face_sign * height
@@ -222,6 +264,7 @@ class ModifyBarStep(ModifyBodyStep):
                         x + self.step.x + self.step.radius,
                         y1,
                         stroke='gray',
+                        stroke_opacity=stroke_opacity,
                         stroke_dasharray=DASH,
                     ))
                 y0 = y_face if face_sign >= 0 else y_face + face.height

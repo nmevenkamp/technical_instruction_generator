@@ -31,5 +31,5 @@ class Step(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def draw(self, drawing: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False) -> None:
+    def draw(self, drawing: SizedGroup, x=0, y=0, active: bool = True, dimensions: bool = True, close_up: bool = False, faded: bool = False) -> None:
         raise NotImplementedError

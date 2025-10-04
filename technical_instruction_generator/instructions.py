@@ -110,12 +110,16 @@ class Instructions:
                 if (isinstance(step_, ModifyBodyStep) and step_.body == step.body)
                 or (isinstance(step_, ModifyMultiBodyStep) and step in step_.bodies)
             ]
+            for step_ in steps:
+                step.set_active_body(step_.body)
         elif isinstance(step, ModifyMultiBodyStep):
             steps = [
                 step_ for step_ in steps
                 if (isinstance(step_, ModifyBodyStep) and step_.body in step.bodies)
                 or (isinstance(step_, ModifyMultiBodyStep) and step.get_common_bodies(step_))
             ]
+            for step_ in steps:
+                step_.set_active_bodies(step.bodies)
         else:
             steps = [step]
         step_layout.add_view(CloseUpView(steps, padding=(50, 0)), size_behaviour=ScaleBehaviour())
