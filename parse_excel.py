@@ -32,7 +32,7 @@ def parse_bodies(df: pd.DataFrame) -> list[Bar]:
         identifiers = get_identifiers(row['Teil'])
         length, width, height = row[CUTS_MEAS_COL].split(" x ")
         bodies.extend([
-            Bar(identifier, float(width), float(height), float(length))
+            Bar(identifier, float(height), float(width), float(length))
             for identifier in identifiers
         ])
 
@@ -59,6 +59,7 @@ def parse_drillings(df: pd.DataFrame, bodies: list[Bar]) -> list[ModifyBarStep]:
             bodies_list_ = [body_ for body_ in bodies if body_.identifier == identifier]
             assert len(bodies_list_) == 1
             bar = bodies_list_[0]
+            face = bar[face_identifier]
 
             # parse diameter, depth and whether hole is through
             diam, depth = drill_str.replace("U", "").split("x")
@@ -66,7 +67,14 @@ def parse_drillings(df: pd.DataFrame, bodies: list[Bar]) -> list[ModifyBarStep]:
             through = not "U" in drill_str
             depth = 0 if through else float(depth)
 
-            steps.append(ModifyBarStep(bar, face_identifier, DrillHole(x, y, diam, depth, through, identifier=hole_identifier)))
+            steps.append(
+                ModifyBarStep(
+                    bar,
+                    face_identifier,
+                    DrillHole(x, y, diam, depth, through, identifier=hole_identifier),
+                    ref_x_opposite=x < face.width / 2,
+                )
+            )
 
     return steps
 
@@ -102,7 +110,7 @@ def merge_steps(steps: list[ModifyBarStep]) -> list[ModifyBarStep | ModifyMultiB
         key=lambda s: (
             s.step.step.through and s.step.step.diameter > 13,
             s.step.step.y,
-            s.step.step.x,
+            s.step.bar.length - s.step.step.x if s.step.ref_x_opposite else s.step.step.x,
             s.step.step.through,
             s.step.step.diameter,
             s.step.step.depth,
@@ -119,7 +127,6 @@ def main():
 
     bodies = parse_bodies(df_cut)
     steps = parse_drillings(df_drill, bodies)
-    # TODO: need to cycle face naming so they fit the drilling (needs to be centered)!
     steps = merge_steps(steps)
 
     for step in steps:
@@ -127,8 +134,8 @@ def main():
 
     print(len(steps))
 
-    instructions = Instructions(steps, 'Tims Hochbett (Standardbohrungen)')
-    instructions.save_pdf('output/standardbohrungen.pdf')
+    # instructions = Instructions(steps, 'Tims Hochbett (Standardbohrungen)')
+    # instructions.save_pdf('output/standardbohrungen.pdf')
 
 
 if __name__ == "__main__":

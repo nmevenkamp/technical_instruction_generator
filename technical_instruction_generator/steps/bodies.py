@@ -71,6 +71,8 @@ class ModifyMultiBodyStep(Step):
         Consecutive strs of the form `x.y` are joined together (e.g. 1.4,1.5,1.6 -> 1.4-1.6)
         """
         bodies_strs = sorted([body.identifier for body in self.bodies])
+        return ",".join(bodies_strs)
+
         pattern = re.compile(r'[8-9|1[0-3][.][0-9|1[0-5]')
         nrs_list = [
             [int(nr) for nr in body_str.split('.')] if re.search(pattern, body_str) else None
@@ -149,6 +151,11 @@ class ModifyFaceStep(ModifyBodyStep):
         super().__init__(step.identifier, body, step)
         self.ref_x_opposite = ref_x_opposite
         self.ref_y_opposite = ref_y_opposite
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ModifyFaceStep):
+            return False
+        return self.body == other.body and self.step == other.step
 
     @property
     def identifier(self) -> str | None:
