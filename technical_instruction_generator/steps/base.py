@@ -29,9 +29,8 @@ class Step(ABC):
     def view_box_closeup(self) -> ViewBox:
         raise NotImplementedError
 
-    @property
     @abstractmethod
-    def instruction(self) -> str:
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
         raise NotImplementedError
 
     @abstractmethod

@@ -71,8 +71,8 @@ def parse_drillings(df: pd.DataFrame, bodies: list[Bar]) -> list[ModifyBarStep]:
                 ModifyBarStep(
                     bar,
                     face_identifier,
-                    DrillHole(x, y, diam, depth, through, identifier=hole_identifier),
-                    ref_x_opposite=x < face.width / 2,
+                    DrillHole(x, y, diam, depth, through),
+                    ref_x_opposite=x > face.width / 2,
                 )
             )
 
@@ -94,7 +94,17 @@ def get_base_bars(steps: list[ModifyBarStep]) -> list[Bar]:
 
 
 def merge_steps(steps: list[ModifyBarStep]) -> list[ModifyBarStep | ModifyMultiBodyStep]:
-    steps = sorted(steps, key=lambda s: s.identifier)
+    steps = sorted(
+        steps,
+        key=lambda s: (
+            s.step.through and s.step.diameter > 13,
+            s.step.y,
+            s.bar.length - s.step.x if s.ref_x_opposite else s.step.x,
+            s.step.through,
+            s.step.diameter,
+            s.step.depth,
+            s.face_identifier,
+        ))
 
     res = []
     while steps:
@@ -130,12 +140,12 @@ def main():
     steps = merge_steps(steps)
 
     for step in steps:
-        print(step.instruction)
+        print(step.get_instruction())
 
     print(len(steps))
 
-    # instructions = Instructions(steps, 'Tims Hochbett (Standardbohrungen)')
-    # instructions.save_pdf('output/standardbohrungen.pdf')
+    instructions = Instructions(steps, 'Tims Hochbett (Standardbohrungen)')
+    instructions.save_pdf('output/standardbohrungen.pdf')
 
 
 if __name__ == "__main__":

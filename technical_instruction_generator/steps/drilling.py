@@ -4,7 +4,7 @@ import drawsvg as draw
 from drawsvg import Drawing, Group
 
 from .base import Step
-from ..dimensions import ANNOTATION_OFFSET, FONT_SIZE_BASE
+from ..dimensions import ANNOTATION_OFFSET, DRILL_ANNOTATION_OFFSET_Y, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
 from ..style import DIMENSIONS_FONT_COLOR, FONT_FAMILY_TECH
 from ..utils import draw_position, get_position_text, get_color, disp
@@ -65,9 +65,14 @@ class DrillHole(Step):
                 res += "U"
         return res
 
-    @property
-    def instruction(self) -> str:
-        res = f"Bohre Loch bei ({disp(self.x)}, {disp(self.y)}) mit Durchmesser {disp(self.diameter)}"
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
+        if dim_ref_pt is None:
+            dim_ref_pt = (0, 0)
+
+        x = self.x - dim_ref_pt[0]
+        y = self.y - dim_ref_pt[1]
+
+        res = f"Bohre Loch bei ({disp(x)}, {disp(y)}) mit Durchmesser {disp(self.diameter)}"
         if self.depth > 0:
             res += f" und Tiefe {disp(self.depth)}"
         res += "."
@@ -100,10 +105,10 @@ class DrillHole(Step):
                 self.annotation,
                 FONT_SIZE_BASE,
                 x + self.x + self.radius + ANNOTATION_OFFSET,
-                y + self.y,
+                y + self.y - DRILL_ANNOTATION_OFFSET_Y,
                 fill=DIMENSIONS_FONT_COLOR,
                 text_anchor='start',
-                dominant_baseline='middle',
+                dominant_baseline='hanging',
                 font_family=FONT_FAMILY_TECH,
             ))
             group.register_text(get_position_text(x + dim_ref_pt[0], x + self.x, y + dim_ref_pt[1], y + self.y))

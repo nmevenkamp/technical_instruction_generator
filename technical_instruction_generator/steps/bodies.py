@@ -56,9 +56,8 @@ class ModifyMultiBodyStep(Step):
     def identifier(self) -> str | None:
         return self.step.identifier
 
-    @property
-    def instruction(self) -> str:
-        res = self.step.instruction
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
+        res = self.step.get_instruction(dim_ref_pt)
         if len(self.bodies) > 1:
             res += f" Wiederhole für {self.bodies_str}."
         return res
@@ -180,7 +179,11 @@ class ModifyFaceStep(ModifyBodyStep):
 
     @property
     def instruction(self) -> str:
-        return f"{self.step.instruction[:-1]} auf {self.face}."
+        dim_ref_pt = (
+            self.face.width if self.ref_x_opposite else 0.0,
+            self.face.height if self.ref_y_opposite else 0.0,
+        )
+        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face}."
 
     def draw(
         self,
@@ -289,9 +292,14 @@ class ModifyBarStep(ModifyBodyStep):
         assert isinstance(self.body, Bar)
         return self.body
 
-    @property
-    def instruction(self) -> str:
-        return f"{self.step.instruction[:-1]} auf {self.face} in {self.bar}."
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
+        if dim_ref_pt is None:
+            dim_ref_pt = (0, 0)
+        dim_ref_pt = (
+            dim_ref_pt[0] + self.face.width if self.ref_x_opposite else 0.0,
+            dim_ref_pt[0] + self.face.height if self.ref_y_opposite else 0.0,
+        )
+        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face} in {self.bar}."
 
     @property
     def view_box(self) -> ViewBox:
@@ -322,7 +330,7 @@ class ModifyBarStep(ModifyBodyStep):
             face.draw(group, x, y_face)
 
             # annotate face
-            if not close_up or face.identifier == self.face_identifier:
+            if not close_up:
                 group.register_text(draw.Text(
                     face.identifier,
                     FONT_SIZE_BASE,

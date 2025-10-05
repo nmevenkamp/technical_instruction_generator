@@ -20,6 +20,9 @@ def main() -> None:
             ModifyBarStep(bar3, 'D', DrillHole(20, 21, 4, )),
             ModifyMultiBodyStep([bar1, bar2, bar3, bar4, bar5], ModifyBarStep(bar1, 'D', DrillHole(100, 21, 8, ))),
             ModifyMultiBodyStep([bar1, bar2, bar3, bar4, bar5], ModifyBarStep(bar1, 'D', DrillHole(900, 21, 8), ref_x_opposite=True)),
+            ModifyMultiBodyStep([bar1, bar2, bar3, bar4, bar5], ModifyBarStep(bar1, 'D', DrillHole(200, 21, 8, ))),
+            ModifyMultiBodyStep([bar1, bar2, bar3, bar4, bar5],
+                                ModifyBarStep(bar1, 'D', DrillHole(800, 21, 8), ref_x_opposite=True)),
         ]
     )
     manual.save_svgs('output/instructions.svg')

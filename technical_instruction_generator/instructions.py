@@ -1,14 +1,11 @@
 import os
+import subprocess
+import time
 from pathlib import Path
 
 import drawsvg as draw
-from drawsvg import Drawing
 from lxml import etree
-from svglib.svglib import SvgRenderer
-from svglib.svglib import Drawing as SvglibDrawing
-from reportlab.graphics import renderPDF
-from reportlab.graphics.renderbase import renderScaledDrawing
-from reportlab.pdfgen.canvas import Canvas
+from PyPDF2 import PdfMerger
 from tqdm import tqdm
 
 from .layout_base import Alignment, ExpandBehaviour, LayoutDirection, ScaleBehaviour, SizedGroup
@@ -42,7 +39,39 @@ class Instructions:
             page.drawing.save_svg(path.parent / f"{path.stem}_{idx + 1:03d}.svg")
 
     def save_pdf(self, path: str | Path | os.PathLike) -> None:
-        self._save_pdf(path, self._generate_svgs())
+        if not isinstance(path, Path):
+            path = Path(path)
+
+        self.save_svgs(path)
+
+        # generate PDFs
+        svg_paths = sorted(path.parent.rglob(f"{path.stem}_*.svg"))
+        for svg_path in tqdm(svg_paths, 'generating tmp pdfs'):
+            pdf_path = str(svg_path).replace(".svg", ".pdf")
+            subprocess.call([
+                'C:/Program Files/Inkscape/inkscape.exe',
+                f'--file={svg_path}',
+                '--export-area-drawing',
+                '--without-gui',
+                f'--export-pdf={pdf_path}',
+            ])
+
+        # merge PDFs
+        merger = PdfMerger()
+        pdf_paths = sorted(path.parent.rglob(f"{path.stem}_*.pdf"))
+        for pdf in tqdm(pdf_paths, 'mergings pdfs'):
+            merger.append(pdf)
+        print("writing final pdf..", end=" ", flush=True)
+        merger.write(path)
+        merger.close()
+        print("done.")
+
+        # cleanup
+        time.sleep(1)
+        for path in tqdm(svg_paths, 'deleting tmp svgs'):
+            path.unlink()
+        for pdf_path in tqdm(pdf_paths, 'deleting tmp pdfs'):
+            pdf_path.unlink()
 
     def _generate_svgs(self) -> list[Page]:
         pages: list[Page] = []
@@ -86,7 +115,7 @@ class Instructions:
             font_weight='bold',
             font_family=FONT_FAMILY_TEXT,
         )
-        text.append(draw.TSpan(step.instruction, dx=5, font_weight='normal'))
+        text.append(draw.TSpan(step.get_instruction(), dx=5, font_weight='normal'))
         box.append(text)
 
         # add layout containing steps
@@ -126,22 +155,3 @@ class Instructions:
         step_layout.add_view(FullView(steps), size_behaviour=ScaleBehaviour())
 
         return True
-
-    def _save_pdf(self, path: Path, pages: list[Page]) -> None:
-        if not pages:
-            raise "Cannot convert empty drawings to PDF!"
-
-        # initialize canvas
-        d = renderScaledDrawing(self._to_pdf_drawing(pages[0].drawing))
-        pdf_canvas = Canvas(str(path))
-        pdf_canvas.setTitle("")
-        pdf_canvas.setPageSize((d.width, d.height))
-
-        for page in tqdm(pages, 'rendering PDF pages'):
-            renderPDF.draw(self._to_pdf_drawing(page.drawing), pdf_canvas, 0, 0)
-            pdf_canvas.showPage()
-
-        pdf_canvas.save()
-
-    def _to_pdf_drawing(self, drawing: Drawing) -> SvglibDrawing:
-        return SvgRenderer("").render(etree.fromstring(drawing.as_svg().encode("utf-8"), parser=self._etree_parser))
