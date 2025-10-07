@@ -9,12 +9,13 @@ from ..utils import draw_position_x, get_color, disp, get_position_text_x
 class Cut(Step):
     """TODO: currently, only x-cuts are implemented"""
 
-    def __init__(self, x: float, y: float, direction: tuple[float, float], length: float, identifier: str | None = None) -> None:
+    def __init__(self, x: float, y: float, direction: tuple[float, float], length: float, through: bool = True, identifier: str | None = None) -> None:
         super().__init__(identifier)
         self.x = x
         self.y = y
         self.direction = direction
         self.length = length
+        self.through = through
         self.x0 = np.array([x, y])
         self.v = np.array(direction)
         self.x1 = self.x0 + self.v * length
@@ -63,8 +64,18 @@ class Cut(Step):
             dim_ref_pt = (0, 0)
 
         x = self.x - dim_ref_pt[0]
-
-        return f"Schnitt bei {disp(x)}."
+        y = self.y - dim_ref_pt[1]
+        if self.direction[0] == 0 and self.direction[1] in {1, -1}:
+            res = f"Schnitt bei {disp(x)}"
+        elif self.direction[1] == 0 and self.direction[0] in {1, -1}:
+            res = f"Schnitt bei {disp(y)}"
+        else:
+            # TODO: add angle
+            res = f"Schnitt bei ({disp(x)}, {disp(y)}) mit Winkel (n/a)"
+        if not self.through:
+            res += f" und Länge ({disp(self.length)})"
+        res += "."
+        return res
 
     def draw(
         self,
@@ -82,8 +93,12 @@ class Cut(Step):
 
         color = get_color(active)
         stroke_opacity = 0.4 if faded else 1
-        group.append(draw.Line(x + self.x, y + self.y, x + self.x, y + self.y + self.length, stroke=color, stroke_opacity=stroke_opacity))
+        x1 = x + self.x + self.direction[0] * self.length
+        y1 = y + self.y + self.direction[1] * self.length
+        group.append(draw.Line(x + self.x, y + self.y, x1, y1, stroke=color, stroke_opacity=stroke_opacity))
 
+        # draw mark to indicate on which side of the line to cut
+        # TODO: check on which side the ref_point is and correctly draw mark for angled lines
         delta = 5
         delta_sign = 1 if dim_ref_pt[0] < self.x else -1
         y2 = y + self.y + 0.5 * self.length
@@ -92,6 +107,5 @@ class Cut(Step):
         if dimensions:
             draw_position_x(group, x + dim_ref_pt[0], x + self.x, y + self.y + y2)
             group.register_text(get_position_text_x(x + dim_ref_pt[0], x + self.x, y + self.y + y2))
-
-
-
+            # TODO: annotate angle of cut
+            # TODO: annotate length of cut

@@ -8,9 +8,8 @@ from .base import Step
 from .drilling import DrillHole
 from .sawing import Cut
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
-from ..layout_base import SizedGroup, ViewBox
+from ..layout_base import LayoutDirection, SizedGroup, ViewBox
 from ..style import FONT_FAMILY_TECH, DASH
-from ..utils import draw_position
 
 
 class Body:
@@ -208,9 +207,19 @@ class ModifyFaceStep(ModifyBodyStep):
 
 
 class CutFaceStep(ModifyFaceStep):
-    def __init__(self, body: Face, x: float, ref_x_opposite: bool = False) -> None:
-        step = Cut(x, y=0, direction=(0, 1), length=body.height)
-        super().__init__(body=body, step=step, ref_x_opposite=ref_x_opposite)
+    def __init__(self, body: Face, pos: float, ref_opposite: bool = False, direction: LayoutDirection = None) -> None:
+        if direction is None:
+            direction = LayoutDirection.HORIZONTAL
+
+        if direction is LayoutDirection.HORIZONTAL:
+            step = Cut(x=pos, y=0, direction=(0, 1), length=body.height)
+            ref_x_opposite = ref_opposite
+            ref_y_opposite = False
+        else:
+            step = Cut(x=0, y=pos, direction=(0, 1), length=body.width)
+            ref_x_opposite = False
+            ref_y_opposite = ref_opposite
+        super().__init__(body=body, step=step, ref_x_opposite=ref_x_opposite, ref_y_opposite=ref_y_opposite)
 
 
 class Bar(Body):
