@@ -85,7 +85,7 @@ class Instructions:
                 page_idx += 1
                 page = Page(page_idx)
                 if not self._add_step(page, step_idx):
-                    raise ValueError(f"Unable to add step {step_idx} `{self.steps[step_idx].instruction}` to new page!")
+                    raise ValueError(f"Unable to add step {step_idx} `{self.steps[step_idx].get_instruction()}` to new page!")
 
         pages.append(page)
 

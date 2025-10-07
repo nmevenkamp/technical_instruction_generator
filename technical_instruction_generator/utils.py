@@ -23,9 +23,24 @@ class Text(draw.Text):
         super().__init__(text, font_size, x, -y, transform='scale(1, -1)', font_family=font_family, **kwargs)
 
 
-def draw_position(group: SizedGroup, x0: float, x1: float, y0: float, y1: float) -> None:
+def draw_position(
+    group: SizedGroup,
+    x0: float,
+    x1: float,
+    y0: float,
+    y1: float,
+) -> None:
     group.draw(draw.Line(x0, y1, x1, y1, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # x
     group.draw(draw.Line(x1, y0, x1, y1, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # y
+
+
+def draw_position_x(
+    group: SizedGroup,
+    x0: float,
+    x1: float,
+    y: float,
+) -> None:
+    group.draw(draw.Line(x0, y, x1, y, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # x
 
 
 def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
@@ -51,6 +66,19 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
             font_family=FONT_FAMILY_TECH,
         ),
     ]
+
+
+def get_position_text_x(x0: float, x1: float, y: float) -> draw.Text:
+    return draw.Text(
+        disp(math.fabs(x1 - x0)),
+        FONT_SIZE_BASE,
+        x1 + math.copysign(DIMENSIONS_TEXT_OFFSET, x0 - x1),
+        y + ANNOTATION_OFFSET,
+        fill=DIMENSIONS_FONT_COLOR,
+        text_anchor='end' if x0 < x1 else 'start',
+        dominant_baseline='auto',
+        font_family=FONT_FAMILY_TECH,
+    )
 
 
 def get_text_background(text: Any) -> draw.Rectangle:

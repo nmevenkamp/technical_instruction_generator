@@ -6,6 +6,7 @@ import drawsvg as draw
 
 from .base import Step
 from .drilling import DrillHole
+from .sawing import Cut
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import SizedGroup, ViewBox
 from ..style import FONT_FAMILY_TECH, DASH
@@ -120,7 +121,7 @@ class ModifyMultiBodyStep(Step):
             dim_ref_pt: tuple[float, float] | None = None
     ) -> None:
         # if self._active_bodies is not None:
-        #     faded |= set(self._active_bodies).issubset(self.bodies)
+        #     faded |= not set(self._active_bodies).issubset(self.bodies)
         self.step.draw(group, x, y, active, dimensions, close_up, faded, dim_ref_pt)
 
 
@@ -177,8 +178,7 @@ class ModifyFaceStep(ModifyBodyStep):
         y1 = max(self.step.view_box_closeup.y, self.face.view_box.y + self.face.view_box.height)
         return ViewBox(x0, y0, x1 - x0, y1 - y0)
 
-    @property
-    def instruction(self) -> str:
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
         dim_ref_pt = (
             self.face.width if self.ref_x_opposite else 0.0,
             self.face.height if self.ref_y_opposite else 0.0,
@@ -196,8 +196,8 @@ class ModifyFaceStep(ModifyBodyStep):
         faded: bool = False,
         dim_ref_pt: tuple[float, float] | None = None
     ) -> None:
-        if self._active_bodies is not None:
-            faded |= set(self._active_bodies).issubset({self.body})
+        # if self._active_bodies is not None:
+        #     faded |= not set(self._active_bodies).issubset({self.body})
         self.face.draw(group, x, y)
 
         dim_ref_pt = (
@@ -205,6 +205,12 @@ class ModifyFaceStep(ModifyBodyStep):
             self.face.height if self.ref_y_opposite else 0.0,
         )
         self.step.draw(group, x, y, active, dimensions, close_up, faded, dim_ref_pt)
+
+
+class CutFaceStep(ModifyFaceStep):
+    def __init__(self, body: Face, x: float, ref_x_opposite: bool = False) -> None:
+        step = Cut(x, y=0, direction=(0, 1), length=body.height)
+        super().__init__(body=body, step=step, ref_x_opposite=ref_x_opposite)
 
 
 class Bar(Body):

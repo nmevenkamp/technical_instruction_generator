@@ -1,6 +1,6 @@
 from technical_instruction_generator.instructions import Instructions
 from technical_instruction_generator.steps.drilling import  DrillHole
-from technical_instruction_generator.steps.bodies import Bar, ModifyBarStep, ModifyMultiBodyStep
+from technical_instruction_generator.steps.bodies import Face, CutFaceStep, Bar, ModifyBarStep, ModifyMultiBodyStep
 
 
 def main() -> None:
@@ -9,9 +9,12 @@ def main() -> None:
     bar3 = Bar("1.4", 42, 48, 1000)
     bar4 = Bar("1.5", 42, 48, 1000)
     bar5 = Bar("1.6", 42, 48, 1000)
+    face = Face("Latte", 1000, 100)
     manual = Instructions(
         title="Tims Abenteuerbett",
         steps=[
+            CutFaceStep(face, 600),
+            CutFaceStep(face, 800, True),
             ModifyBarStep(bar1, 'D', DrillHole(200, 21, 20, 12, False)),
             # ModifyBarStep(bar1, 'D', DrillHole(200, 21, 7, )),
             ModifyBarStep(bar1, 'D', DrillHole(100, 21, 20, 12, False)),
