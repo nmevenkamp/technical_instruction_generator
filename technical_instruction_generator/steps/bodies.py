@@ -182,7 +182,7 @@ class ModifyFaceStep(ModifyBodyStep):
             self.face.width if self.ref_x_opposite else 0.0,
             self.face.height if self.ref_y_opposite else 0.0,
         )
-        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face}."
+        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face} ({self.face.width}x{self.face.height})."
 
     def draw(
         self,
@@ -207,18 +207,18 @@ class ModifyFaceStep(ModifyBodyStep):
 
 
 class CutFaceStep(ModifyFaceStep):
-    def __init__(self, body: Face, pos: float, ref_opposite: bool = False, direction: LayoutDirection = None) -> None:
+    def __init__(self, body: Face, pos: float, ref_opposite: bool | None = None, direction: LayoutDirection = None, identifier: str | None = None) -> None:
         if direction is None:
-            direction = LayoutDirection.HORIZONTAL
+            direction = LayoutDirection.VERTICAL
 
-        if direction is LayoutDirection.HORIZONTAL:
-            step = Cut(x=pos, y=0, direction=(0, 1), length=body.height)
-            ref_x_opposite = ref_opposite
+        if direction is LayoutDirection.VERTICAL:
+            step = Cut(x=pos, y=0, direction=(0, 1), length=body.height, identifier=identifier)
+            ref_x_opposite = ref_opposite if ref_opposite is not None else pos > body.width
             ref_y_opposite = False
         else:
-            step = Cut(x=0, y=pos, direction=(0, 1), length=body.width)
+            step = Cut(x=0, y=pos, direction=(1, 0), length=body.width, identifier=identifier)
             ref_x_opposite = False
-            ref_y_opposite = ref_opposite
+            ref_y_opposite = ref_opposite if ref_opposite is not None else pos > body.height
         super().__init__(body=body, step=step, ref_x_opposite=ref_x_opposite, ref_y_opposite=ref_y_opposite)
 
 
@@ -314,7 +314,7 @@ class ModifyBarStep(ModifyBodyStep):
             dim_ref_pt[0] + self.face.width if self.ref_x_opposite else 0.0,
             dim_ref_pt[0] + self.face.height if self.ref_y_opposite else 0.0,
         )
-        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face} in {self.bar}."
+        return f"{self.step.get_instruction(dim_ref_pt)[:-1]} auf {self.face} in {self.bar} ({self.bar.length}x{self.bar.width}x{self.bar.height})."
 
     @property
     def view_box(self) -> ViewBox:

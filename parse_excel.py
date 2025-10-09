@@ -1,10 +1,13 @@
+import dataclasses
+import math
 import re
 from itertools import product
 
 import pandas as pd
 
 from technical_instruction_generator.instructions import Instructions
-from technical_instruction_generator.steps.bodies import Bar, ModifyBarStep, ModifyMultiBodyStep
+from technical_instruction_generator.layout_base import LayoutDirection
+from technical_instruction_generator.steps.bodies import Bar, CutFaceStep, Face, ModifyBarStep, ModifyMultiBodyStep
 from technical_instruction_generator.steps.drilling import DrillHole
 
 CUTS_MEAS_COL = 'Maße [L x B x H]'
@@ -27,9 +30,9 @@ def parse_bodies(df: pd.DataFrame) -> list[Bar]:
 
     pattern = r"\b(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\b"
     for _, row in df.iterrows():
-        if not re.search(pattern, row[CUTS_MEAS_COL]):
+        if not re.search(pattern, str(row[CUTS_MEAS_COL])):
             continue
-        identifiers = get_identifiers(row['Teil'])
+        identifiers = get_identifiers(str(row['Teil']))
         length, width, height = row[CUTS_MEAS_COL].split(" x ")
         bodies.extend([
             Bar(identifier, float(height), float(width), float(length))
@@ -46,11 +49,11 @@ def parse_drillings(df: pd.DataFrame, bodies: list[Bar]) -> list[ModifyBarStep]:
         if row['manual'] == 'x':
             continue
 
-        identifiers = get_identifiers(row['Teil'])
-        face_identifier = row['Seite']
-        hole_identifier = row['Bohrung']
-        x = float(row['y'])
-        y = float(row['x'])
+        identifiers = get_identifiers(str(row['Teil']))
+        face_identifier = str(row['Seite'])
+        hole_identifier = str(row['Bohrung'])
+        x = float(str(row['y']))
+        y = float(str(row['x']))
 
         drill_strs = row['Typ'].split(";")
 
@@ -93,7 +96,7 @@ def get_base_bars(steps: list[ModifyBarStep]) -> list[Bar]:
     ]
 
 
-def merge_steps(steps: list[ModifyBarStep]) -> list[ModifyBarStep | ModifyMultiBodyStep]:
+def merge_drill_steps(steps: list[ModifyBarStep]) -> list[ModifyBarStep | ModifyMultiBodyStep]:
     steps = sorted(
         steps,
         key=lambda s: (
@@ -130,23 +133,187 @@ def merge_steps(steps: list[ModifyBarStep]) -> list[ModifyBarStep | ModifyMultiB
     return res
 
 
-def main():
+def parse_cuts(df: pd.DataFrame) -> dict[str, list[Face]]:
+    faces = {}
+    for _, row in df.iterrows():
+        measure_str = str(row['Maße [L x B x H]'])
+        parts = measure_str.split(" x ")
+        if len(parts) == 3:
+            l, b, h = parts
+        else:
+            l, b = parts
+            b = b.replace("D", "")
+        identifiers = get_identifiers(str(row['Teil']))
+        if measure_str not in faces:
+            faces[measure_str] = []
+        faces[measure_str].extend([Face(identifier, int(l), int(b)) for identifier in identifiers])
+
+    return faces
+
+
+def parse_faces_base(df: pd.DataFrame) -> list[Face]:
+    measure_strs = {str(row['Maße [Basis]']) for _, row in df.iterrows()}
+    faces = []
+    for measure_str in measure_strs:
+        l, b = measure_str.split(" x ")
+        faces.append(Face(measure_str, int(l), int(b)))
+    return faces
+
+
+def get_cuts(faces_dict: dict[str, list[Face]], faces_base: list[Face], mat_sep: str = '-') -> tuple[pd.DataFrame, list[CutFaceStep]]:
+    faces = [face for _, faces in faces_dict.items() for face in faces]
+    cuts = []
+
+    data = []
+
+    # width: 28
+    width = 28
+    faces_ = [face for face in faces if face.height == width]
+    base = [face for face in faces_base if face.height == width][0]
+    res = get_cuts_1d(faces_, base, mat_sep=mat_sep)
+    cuts.extend(res.steps)
+    data.append([base.identifier, f"{base.width}x{base.height}", res.base_count])
+
+    # widths: 48, 70
+    for width in [48, 70]:
+        faces_ = [face for face in faces if face.height == width]
+        base = [face for face in faces_base if face.height == width][0]
+        res = get_cuts_1d(faces_, base, mat_sep=mat_sep)
+        cuts.extend(res.steps)
+        data.append([base.identifier, f"{base.width}x{base.height}", res.base_count])
+
+    # widths: 200, 194, 160, 100
+    widths = [200, 194, 160]
+    faces_ = [face for face in faces if face.height in widths]
+    base = [face for face in faces_base if face.height == 200][0]
+    res_200 = get_cuts_1d(faces_, base, mat_sep=mat_sep)
+    cuts.extend(res_200.steps)
+    # TODO: add horizontal cuts to 194, 160
+
+    # width: 100 [uses rest from width 200]
+    faces_ = [face for face in faces if face.height == 100]
+    materials = []
+    while res_200.rest:
+        material = res_200.rest.pop(0)
+        if material.width < min(face.width for face in faces_):
+            continue
+        cuts.append(CutFaceStep(material, material.height / 2, direction=LayoutDirection.HORIZONTAL, identifier=material.identifier))
+        base_identifier, material_identifier = material.identifier.split(mat_sep)
+        material_idx, cut_idx = material_identifier.split(".")
+        for _ in range(2):
+            cut_idx = int(cut_idx) + 1
+            materials.append(Face(base_identifier + f"{mat_sep}{material_idx}.{cut_idx}", material.width, material.height / 2))
+    res_100_base = Face(base.identifier + "|2", base.width, 100)
+    res_100 = get_cuts_1d(faces_, res_100_base, materials=materials, start_idx=res_200.base_count + 1, mat_sep=mat_sep)
+    res_100_base_count = math.ceil(res_100.base_count / 2)
+    cuts.extend([
+        CutFaceStep(base, base.height / 2, direction=LayoutDirection.HORIZONTAL, identifier=base.identifier + f"|2.{idx + 1}")
+        for idx in range(res_100_base_count)
+    ])
+    cuts.extend(res_100.steps)
+    data.append([base.identifier, f"{base.width}x{base.height}", res_200.base_count + res_100_base_count])
+
+    # generate material table
+    df = pd.DataFrame(data, columns=["ID", "Maße [L x B]", "#"])
+    df = df.sort_values("#", ascending=False)
+
+    return df, cuts
+
+
+@dataclasses.dataclass
+class CutsResult:
+    base_count: int
+    steps: list[CutFaceStep]
+    rest: list[Face]
+
+
+def get_cuts_1d(
+    faces: list[Face],
+    base: Face,
+    materials: list[Face] | None = None,
+    start_idx: int = 1,
+    cut_width: int = 3,
+    mat_sep: str = '-',
+) -> CutsResult:
+    base_count = 0
+    cuts = []
+    idx = start_idx
+    if not materials:
+        materials = [Face(base.identifier + f"{mat_sep}{idx}.1", base.width, base.height)]
+        base_count += 1
+    faces = sorted(faces, key=lambda f: f.width, reverse=True)
+    while faces:
+        face = faces.pop(0)
+        materials = sorted(materials, key=lambda m: m.width)
+        materials_ = [m for m in materials if m.width >= face.width]
+        if not materials_:
+            idx += 1
+            material = Face(base.identifier + f"{mat_sep}{idx}.1", base.width, base.height)
+            base_count += 1
+            cuts.append(CutFaceStep(material, face.width, identifier=face.identifier))
+            rest_width = base.width - face.width - cut_width
+            materials.append(Face(base.identifier + f"{mat_sep}{idx}.2", rest_width, base.height))
+            continue
+        material = materials_.pop(0)
+        materials.remove(material)
+        cuts.append(CutFaceStep(material, face.width, identifier=face.identifier))
+        base_identifier, material_identifier = material.identifier.split(mat_sep)
+        material_idx, cut_idx = material_identifier.split(".")
+        cut_idx = int(cut_idx) + 1
+        rest_width = material.width - face.width - cut_width
+        materials.append(Face(base_identifier + f"{mat_sep}{material_idx}.{cut_idx}", rest_width, base.height))
+
+    return CutsResult(base_count, cuts, materials)
+
+
+def main_drillings():
     path = 'D:/Dokumente/Tim/Hochbett.xlsx'
     df_cut = pd.read_excel(path, sheet_name='Schnitte')
     df_drill = pd.read_excel(path, sheet_name='Bohrungen')
-
     bodies = parse_bodies(df_cut)
     steps = parse_drillings(df_drill, bodies)
-    steps = merge_steps(steps)
+    steps = merge_drill_steps(steps)
 
+    print("Schritte:")
     for step in steps:
-        print(step.get_instruction())
+        print(f"\t{step.get_instruction()} -> {step.identifier}")
 
-    print(len(steps))
+    print(f"\nAnzahl Schritte: {len(steps)}")
 
-    instructions = Instructions(steps, 'Tims Hochbett (Standardbohrungen)')
-    instructions.save_pdf('output/standardbohrungen.pdf')
+    instructions = Instructions(steps, 'Tims Hochbett (Bohrungen)')
+    instructions.save_pdf('output/2_bohrungen.pdf')
+
+
+def main_cuts():
+    path = 'D:/Dokumente/Tim/Hochbett.xlsx'
+    df_cut = pd.read_excel(path, sheet_name='Schnitte')
+
+    faces_dict = parse_cuts(df_cut)
+    faces_base = parse_faces_base(df_cut)
+    base_counts, steps = get_cuts(faces_dict, faces_base)
+    # TODO: merge steps (same cut on same sized piece)
+
+    print("Schritte:")
+    for step in steps:
+        print(f"\t{step.get_instruction()} -> {step.identifier}")
+    print(f"\nAnzahl Schritte: {len(steps)}")
+
+    print("\n\nMaterialien:")
+    for face in faces_base:
+        print(f"\t{face.width}x{face.height}: {face}")
+
+    print("\n\nBenötigte Teile:")
+    for measure_str, faces in faces_dict.items():
+        faces_str = ",".join(str(face) for face in faces)
+        print(f"\t{measure_str.replace(" ", "")}: {faces_str}")
+
+    print("\n\nKaufliste:")
+    print(base_counts)
+
+    instructions = Instructions(steps, 'Tims Hochbett (Schnitte)')
+    instructions.save_pdf('output/1_schnitte.pdf')
+    # TODO: horizontal cuts are not displayed correctly
 
 
 if __name__ == "__main__":
-    main()
+    main_cuts()
