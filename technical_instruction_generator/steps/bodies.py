@@ -10,6 +10,7 @@ from .sawing import Cut
 from ..dimensions import FACE_ANNOTATION_OFFSET, FONT_SIZE_BASE
 from ..layout_base import LayoutDirection, SizedGroup, ViewBox
 from ..style import FONT_FAMILY_TECH, DASH
+from ..utils import sorted_nicely
 
 
 class Body:
@@ -69,7 +70,7 @@ class ModifyMultiBodyStep(Step):
         Bodies are sorted alphanumerically.
         Consecutive strs of the form `x.y` are joined together (e.g. 1.4,1.5,1.6 -> 1.4-1.6)
         """
-        bodies_strs = sorted([body.identifier for body in self.bodies])
+        bodies_strs = sorted_nicely([body.identifier for body in self.bodies])
         return ",".join(bodies_strs)
 
         pattern = re.compile(r'[8-9|1[0-3][.][0-9|1[0-5]')
@@ -129,6 +130,11 @@ class Face(Body):
         super().__init__(identifier)
         self.width = width
         self.height = height
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Face):
+            return False
+        return self.width == other.width and self.height == other.height
 
     def __str__(self) -> str:
         return f"Fläche {self.identifier}"
@@ -220,6 +226,37 @@ class CutFaceStep(ModifyFaceStep):
             ref_x_opposite = False
             ref_y_opposite = ref_opposite if ref_opposite is not None else pos > body.height
         super().__init__(body=body, step=step, ref_x_opposite=ref_x_opposite, ref_y_opposite=ref_y_opposite)
+
+
+class MultiCutFaceStep:
+    def __init__(self, step: CutFaceStep, identifiers: list[str]):
+        self.step = step
+        self.identifiers = identifiers
+
+    @property
+    def identifier(self) -> str | None:
+        return self.step.identifier
+
+    @property
+    def face(self) -> Face:
+        return self.step.face
+
+    @property
+    def view_box(self) -> ViewBox:
+        return self.step.view_box
+
+    @property
+    def view_box_closeup(self) -> ViewBox:
+        return self.step.view_box_closeup
+
+    def get_instruction(self, dim_ref_pt: tuple[float, float] | None = None) -> str:
+        res = f"{len(self.identifiers)}x " + self.step.get_instruction(dim_ref_pt)[:-1]
+        identifiers_str = ",".join(sorted_nicely(set(self.identifiers)))
+        res += f" -> {identifiers_str}."
+        return res
+
+    def draw(self, *args, **kwargs) -> None:
+        self.step.draw(*args, **kwargs)
 
 
 class Bar(Body):

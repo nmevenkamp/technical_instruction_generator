@@ -1,11 +1,19 @@
 import math
-from typing import Any
+import re
+from typing import Any, Iterable
 
 import drawsvg as draw
 
 from .dimensions import ANNOTATION_OFFSET, DIMENSIONS_TEXT_OFFSET, FONT_SIZE_BASE
 from .layout_base import SizedGroup
 from .style import ACTIVE_STROKE_COLOR, DASH, DIMENSIONS_FONT_COLOR, DIMENSIONS_LINE_COLOR, FONT_FAMILY_TECH
+
+
+def sorted_nicely(l: Iterable) -> list[Any]:
+    """ Sort the given iterable in the way that humans expect."""
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(l, key = alphanum_key)
 
 
 def disp(nr: int | float) -> str:
@@ -43,6 +51,15 @@ def draw_position_x(
     group.draw(draw.Line(x0, y, x1, y, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # x
 
 
+def draw_position_y(
+    group: SizedGroup,
+    x: float,
+    y0: float,
+    y1: float,
+) -> None:
+    group.draw(draw.Line(x, y0, x, y1, stroke=DIMENSIONS_LINE_COLOR, stroke_width=0.5, stroke_dasharray=DASH))  # x
+
+
 def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.Text]:
     return [
         draw.Text(
@@ -77,6 +94,19 @@ def get_position_text_x(x0: float, x1: float, y: float) -> draw.Text:
         fill=DIMENSIONS_FONT_COLOR,
         text_anchor='end' if x0 < x1 else 'start',
         dominant_baseline='auto',
+        font_family=FONT_FAMILY_TECH,
+    )
+
+
+def get_position_text_y(x: float, y0: float, y1: float) -> draw.Text:
+    return draw.Text(
+        disp(math.fabs(y1 - y0)),
+        FONT_SIZE_BASE,
+        x + ANNOTATION_OFFSET,
+        y1 + math.copysign(DIMENSIONS_TEXT_OFFSET, y0 - y1),
+        fill=DIMENSIONS_FONT_COLOR,
+        text_anchor='start',
+        dominant_baseline='hanging' if y0 < y1 else 'auto',
         font_family=FONT_FAMILY_TECH,
     )
 

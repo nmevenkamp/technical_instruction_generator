@@ -1,9 +1,19 @@
+import math
+
 import drawsvg as draw
 import numpy as np
 
 from .base import Step
+from ..dimensions import ANNOTATION_OFFSET, CLOSE_UP_PADDING
 from ..layout_base import SizedGroup, ViewBox
-from ..utils import draw_position_x, get_color, disp, get_position_text_x
+from ..utils import (
+    draw_position_x,
+    draw_position_y,
+    get_color,
+    disp,
+    get_position_text_x,
+    get_position_text_y,
+)
 
 
 class Cut(Step):
@@ -53,7 +63,15 @@ class Cut(Step):
 
     @property
     def view_box_closeup(self) -> ViewBox:
-        return self.view_box
+        if self.direction[0] == 0 and self.direction[1] in {-1, 1}:
+            return self.view_box
+        else:
+            return ViewBox(
+                max(math.floor(self.x) - CLOSE_UP_PADDING, 0),
+                math.floor(self.y),
+                4 * CLOSE_UP_PADDING,
+                self.height,
+            )
 
     @property
     def annotation(self) -> str:
@@ -98,14 +116,26 @@ class Cut(Step):
         group.append(draw.Line(x + self.x, y + self.y, x1, y1, stroke=color, stroke_opacity=stroke_opacity))
 
         # draw mark to indicate on which side of the line to cut
-        # TODO: check on which side the ref_point is and correctly draw mark for angled lines
         delta = 5
-        delta_sign = 1 if dim_ref_pt[0] < self.x else -1
         y2 = y + self.y + 0.5 * self.length
-        group.append(draw.Line(x + self.x, y2, x + self.x + delta_sign * delta, y2 + delta, stroke=color, stroke_opacity=stroke_opacity))
+        x2 = x + self.x + 0.5 * self.length
+        if self.direction[0] == 0 and self.direction[1] in {1, -1}:
+            delta_sign = 1 if dim_ref_pt[0] < self.x else -1
+            group.append(draw.Line(x + self.x, y2, x + self.x + delta_sign * delta, y2 + delta, stroke=color, stroke_opacity=stroke_opacity))
+        elif self.direction[1] == 0 and self.direction[0] in {1, -1}:
+            delta_sign = 1 if dim_ref_pt[1] < self.y else -1
+            group.append(draw.Line(x + self.x + CLOSE_UP_PADDING, y + self.y, x + self.x + delta + CLOSE_UP_PADDING, y + self.y + delta_sign * delta, stroke=color, stroke_opacity=stroke_opacity))
+        else:
+            pass # TODO: support diagonal lines
 
         if dimensions:
-            draw_position_x(group, x + dim_ref_pt[0], x + self.x, y + self.y + y2)
-            group.register_text(get_position_text_x(x + dim_ref_pt[0], x + self.x, y + self.y + y2))
+            if self.direction[0] == 0 and self.direction[1] in {1, -1}:
+                draw_position_x(group, x + dim_ref_pt[0], x + self.x, y + self.y + y2)
+                group.register_text(get_position_text_x(x + dim_ref_pt[0], x + self.x, y + self.y + y2))
+            elif self.direction[1] == 0 and self.direction[0] in {1, -1}:
+                draw_position_y(group, x + self.x + CLOSE_UP_PADDING, y + dim_ref_pt[1], y + self.y)
+                group.register_text(get_position_text_y(x + self.x + CLOSE_UP_PADDING, y + dim_ref_pt[1], y + self.y))
+            else:
+                pass
             # TODO: annotate angle of cut
             # TODO: annotate length of cut

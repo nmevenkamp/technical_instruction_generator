@@ -7,7 +7,8 @@ import pandas as pd
 
 from technical_instruction_generator.instructions import Instructions
 from technical_instruction_generator.layout_base import LayoutDirection
-from technical_instruction_generator.steps.bodies import Bar, CutFaceStep, Face, ModifyBarStep, ModifyMultiBodyStep
+from technical_instruction_generator.steps.bodies import Bar, CutFaceStep, Face, ModifyBarStep, ModifyMultiBodyStep, \
+    MultiCutFaceStep
 from technical_instruction_generator.steps.drilling import DrillHole
 
 CUTS_MEAS_COL = 'Maße [L x B x H]'
@@ -144,9 +145,14 @@ def parse_cuts(df: pd.DataFrame) -> dict[str, list[Face]]:
             l, b = parts
             b = b.replace("D", "")
         identifiers = get_identifiers(str(row['Teil']))
+        count = int(str(row['Anzahl']))
         if measure_str not in faces:
             faces[measure_str] = []
-        faces[measure_str].extend([Face(identifier, int(l), int(b)) for identifier in identifiers])
+        faces[measure_str].extend([
+            Face(identifier, int(l), int(b))
+            for identifier in identifiers
+            for _ in range(count)
+        ])
 
     return faces
 
@@ -174,6 +180,14 @@ def get_cuts(faces_dict: dict[str, list[Face]], faces_base: list[Face], mat_sep:
     cuts.extend(res.steps)
     data.append([base.identifier, f"{base.width}x{base.height}", res.base_count])
 
+    # width: 300
+    widths = [208, 210]
+    faces_ = [face for face in faces if face.height in widths]
+    base = [face for face in faces_base if face.height == 300][0]
+    res = get_cuts_1d(faces_, base, mat_sep=mat_sep)
+    cuts.extend(res.steps)
+    data.append([base.identifier, f"{base.width}x{base.height}", res.base_count])
+
     # widths: 48, 70
     for width in [48, 70]:
         faces_ = [face for face in faces if face.height == width]
@@ -188,7 +202,6 @@ def get_cuts(faces_dict: dict[str, list[Face]], faces_base: list[Face], mat_sep:
     base = [face for face in faces_base if face.height == 200][0]
     res_200 = get_cuts_1d(faces_, base, mat_sep=mat_sep)
     cuts.extend(res_200.steps)
-    # TODO: add horizontal cuts to 194, 160
 
     # width: 100 [uses rest from width 200]
     faces_ = [face for face in faces if face.height == 100]
@@ -207,11 +220,30 @@ def get_cuts(faces_dict: dict[str, list[Face]], faces_base: list[Face], mat_sep:
     res_100 = get_cuts_1d(faces_, res_100_base, materials=materials, start_idx=res_200.base_count + 1, mat_sep=mat_sep)
     res_100_base_count = math.ceil(res_100.base_count / 2)
     cuts.extend([
-        CutFaceStep(base, base.height / 2, direction=LayoutDirection.HORIZONTAL, identifier=base.identifier + f"|2.{idx + 1}")
+        CutFaceStep(base, base.height / 2, direction=LayoutDirection.HORIZONTAL, identifier=base.identifier + "|2")
         for idx in range(res_100_base_count)
     ])
     cuts.extend(res_100.steps)
     data.append([base.identifier, f"{base.width}x{base.height}", res_200.base_count + res_100_base_count])
+
+    # height: 194
+    faces = [
+        Face('7.1', 875, 200),
+        Face('7.2', 976, 200),
+    ]
+    for face in faces:
+        cuts.append(CutFaceStep(face, 194, direction=LayoutDirection.HORIZONTAL, identifier=face.identifier))
+
+    # height: 160
+    faces = [
+                Face(identifier, 916, 200)
+                for identifier in ['11.1', '11.4']
+            ] + [
+                Face(identifier, 252, 200)
+                for identifier in ['11.2', '11.3']
+            ]
+    for face in faces:
+        cuts.append(CutFaceStep(face, 160, direction=LayoutDirection.HORIZONTAL, identifier=face.identifier))
 
     # generate material table
     df = pd.DataFrame(data, columns=["ID", "Maße [L x B]", "#"])
@@ -266,6 +298,20 @@ def get_cuts_1d(
     return CutsResult(base_count, cuts, materials)
 
 
+def merge_cuts(steps: list[CutFaceStep]) -> list[CutFaceStep | MultiCutFaceStep]:
+    res = []
+    steps = steps[:]  # copy list
+    while steps:
+        steps_ = [steps.pop(0)]
+        while steps and steps[0] == steps_[-1]:
+            steps_.append(steps.pop(0))
+        if len(steps_) == 1:
+            res.append(steps_[0])
+        else:
+            res.append(MultiCutFaceStep(steps_[0], [step.identifier for step in steps_]))
+    return res
+
+
 def main_drillings():
     path = 'D:/Dokumente/Tim/Hochbett.xlsx'
     df_cut = pd.read_excel(path, sheet_name='Schnitte')
@@ -291,11 +337,14 @@ def main_cuts():
     faces_dict = parse_cuts(df_cut)
     faces_base = parse_faces_base(df_cut)
     base_counts, steps = get_cuts(faces_dict, faces_base)
-    # TODO: merge steps (same cut on same sized piece)
+    steps = merge_cuts(steps)
 
     print("Schritte:")
     for step in steps:
-        print(f"\t{step.get_instruction()} -> {step.identifier}")
+        if isinstance(step, CutFaceStep):
+            print(f"\t{step.get_instruction()} -> {step.identifier}")
+        else:
+            print(f"\t{step.get_instruction()}")
     print(f"\nAnzahl Schritte: {len(steps)}")
 
     print("\n\nMaterialien:")
@@ -312,8 +361,8 @@ def main_cuts():
 
     instructions = Instructions(steps, 'Tims Hochbett (Schnitte)')
     instructions.save_pdf('output/1_schnitte.pdf')
-    # TODO: horizontal cuts are not displayed correctly
 
 
 if __name__ == "__main__":
     main_cuts()
+    # main_drillings()
