@@ -12,19 +12,21 @@ from technical_instruction_generator.steps.bodies import Bar, CutFaceStep, Face,
 from technical_instruction_generator.steps.drilling import DrillHole
 
 CUTS_MEAS_COL = 'Maße [L x B x H]'
+DIMENSIONS_OFFSET_X = 832.5
 
 
 def get_identifiers(identifier: str) -> list[str]:
+    if ',' in identifier:
+        return sum([get_identifiers(x) for x in identifier.split(',')], [])
+    if '+' in identifier:
+        return sum([get_identifiers(x) for x in identifier.split('+')], [])
     if '-' in identifier:
         identifier_strs = identifier.split('-')
         major = int(identifier_strs[0].split(".")[0])
         minors = range(int(identifier_strs[0].split(".")[1]), int(identifier_strs[1].split(".")[1]) + 1)
-        identifiers = [f"{major}.{minor}" for minor in minors]
-    elif '+' in identifier:
-        identifiers = identifier.split('+')
-    else:
-        identifiers = [identifier]
-    return identifiers
+        return [f"{major}.{minor}" for minor in minors]
+    return [identifier]
+
 
 def parse_bodies(df: pd.DataFrame) -> list[Bar]:
     bodies = []
@@ -75,7 +77,7 @@ def parse_drillings(df: pd.DataFrame, bodies: list[Bar]) -> list[ModifyBarStep]:
                 ModifyBarStep(
                     bar,
                     face_identifier,
-                    DrillHole(x, y, diam, depth, through),
+                    DrillHole(x, y, diam, depth, through, dimensions_offset_x=DIMENSIONS_OFFSET_X),
                     ref_x_opposite=x > face.width / 2,
                 )
             )
@@ -364,5 +366,5 @@ def main_cuts():
 
 
 if __name__ == "__main__":
-    main_cuts()
-    # main_drillings()
+    # main_cuts()
+    main_drillings()
