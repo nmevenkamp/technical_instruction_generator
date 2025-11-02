@@ -4,14 +4,28 @@ import drawsvg as draw
 from drawsvg import Drawing, Group
 
 from .base import Step
-from ..dimensions import ANNOTATION_OFFSET, DRILL_ANNOTATION_OFFSET_Y, FONT_SIZE_BASE
+from ..dimensions import (
+    ANNOTATION_DIMENSION_X_OFFSET_OFFSET,
+    ANNOTATION_OFFSET,
+    DRILL_ANNOTATION_OFFSET_Y,
+    FONT_SIZE_BASE,
+)
 from ..layout_base import SizedGroup, ViewBox
 from ..style import DIMENSIONS_FONT_COLOR, FONT_FAMILY_TECH
-from ..utils import draw_position, get_position_text, get_color, disp
+from ..utils import draw_position, get_position_text, get_color, disp, get_position_text_x
 
 
 class DrillHole(Step):
-    def __init__(self, x: float, y: float, diameter: float, depth: float = 0, through: bool = True, identifier: str | None = None) -> None:
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        diameter: float,
+        depth: float = 0,
+        through: bool = True,
+        dimensions_offset_x: float = 0,
+        identifier: str | None = None
+    ) -> None:
         super().__init__(identifier)
 
         if not through and depth == 0:
@@ -22,6 +36,7 @@ class DrillHole(Step):
         self.diameter = diameter
         self.depth = depth
         self.through = through
+        self.dimensions_offset_x = dimensions_offset_x
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
@@ -72,7 +87,13 @@ class DrillHole(Step):
         x = self.x - dim_ref_pt[0]
         y = self.y - dim_ref_pt[1]
 
-        res = f"Bohre Loch bei ({disp(x)}, {disp(y)}) mit Durchmesser {disp(self.diameter)}"
+        res = f"Bohre Loch bei "
+
+        if self.dimensions_offset_x == 0:
+            res += f"{disp(x)}, {disp(y)}"
+        else:
+            res += f"({disp(x + self.dimensions_offset_x)}, {disp(y)})"
+        res += f" mit DM {disp(self.diameter)}"
         if self.depth > 0:
             res += f" und Tiefe {disp(self.depth)}"
         res += "."
@@ -111,7 +132,11 @@ class DrillHole(Step):
                 dominant_baseline='hanging',
                 font_family=FONT_FAMILY_TECH,
             ))
-            group.register_text(get_position_text(x + dim_ref_pt[0], x + self.x, y + dim_ref_pt[1], y + self.y))
+            y0 = y + dim_ref_pt[1]
+            y1 = y + self.y
+            group.register_text(get_position_text(x + dim_ref_pt[0], x + self.x, y0, y1))
+            if self.dimensions_offset_x is not None:
+                group.register_text(get_position_text_x(x + dim_ref_pt[0], x + self.x, (y0 + y1) / 2 + 18, x_offset=self.dimensions_offset_x))
 
 
 

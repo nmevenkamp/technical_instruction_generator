@@ -85,9 +85,12 @@ def get_position_text(x0: float, x1: float, y0: float, y1: float) -> list[draw.T
     ]
 
 
-def get_position_text_x(x0: float, x1: float, y: float) -> draw.Text:
+def get_position_text_x(x0: float, x1: float, y: float, x_offset: float = 0) -> draw.Text:
+    txt = str(disp(math.fabs(x1 - x0) + x_offset))
+    if x_offset != 0:
+        txt = "(" + txt + ")"
     return draw.Text(
-        disp(math.fabs(x1 - x0)),
+        txt,
         FONT_SIZE_BASE,
         x1 + math.copysign(DIMENSIONS_TEXT_OFFSET, x0 - x1),
         y + ANNOTATION_OFFSET,
